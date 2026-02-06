@@ -7,7 +7,8 @@ SF civic news and provides insights that other agents can use for context.
 
 import asyncio
 from datetime import datetime, timezone
-from backend.services import llm, you_api
+from backend.services import llm, you_api, storage
+
 
 
 class SFNewsAgent:
@@ -176,9 +177,11 @@ Identify connections between news items that reveal larger patterns.
             
             self.findings_store[self.name] = output
             await self.event_queue.put({"type": "finding", "data": output})
+            storage.append_to_history(output)  # Save to history
             
             # Also store news items for other agents to reference
             self.findings_store["_news_headlines"] = news_items
+
             
         except Exception as e:
             print(f"[{self.name}] Error: {e}")

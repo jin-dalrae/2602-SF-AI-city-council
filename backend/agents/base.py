@@ -3,7 +3,8 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from backend.services.socrata import SocrataClient
-from backend.services import llm, you_api
+from backend.services import llm, you_api, storage
+
 
 
 class CityAgent(ABC):
@@ -105,6 +106,7 @@ class CityAgent(ABC):
             }
             self.findings_store[self.name] = output
             await self.event_queue.put({"type": "finding", "data": output})
+            storage.append_to_history(output)  # Save to history
 
             # Check collaborations after updating own findings
             collab = await self.check_collaborations(self.findings_store)
@@ -122,6 +124,8 @@ class CityAgent(ABC):
                 }
                 self.findings_store[collab_key] = collab_output
                 await self.event_queue.put({"type": "finding", "data": collab_output})
+                storage.append_to_history(collab_output)  # Save collaboration to history
+
         except Exception as e:
             error_output = {
                 "agent_name": self.name,
