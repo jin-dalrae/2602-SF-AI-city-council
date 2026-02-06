@@ -67,9 +67,9 @@ Top spending departments:
 Top revenue departments:
 {chr(10).join(f"- {d['department']}: {fmt(d['budget'])}" for d in data['top_revenue_depts'])}"""
 
-        prompt = """Analyze this budget data for an NGO focused on equitable city spending.
+        prompt = """As an Expert Data Analyst, analyze this budget data for a dashboard focused on equitable resident spending.
 Identify departments with unusually high spending, potential misallocations,
 or areas where spending doesn't align with community needs.
-Recommend budget advocacy priorities."""
+Recommend budget advocacy priorities for San Francisco taxpayers."""
 
         return summary, prompt

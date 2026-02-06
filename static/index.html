@@ -58,6 +58,33 @@
         .collaboration-card {
             background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
         }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 10px;
+        }
+
+        .brain-flash {
+            animation: flashIndigo 1.5s ease-out;
+        }
+
+        @keyframes flashIndigo {
+            0% {
+                background-color: rgba(79, 70, 229, 0.2);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
     </style>
 </head>
 
@@ -70,7 +97,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold">AI City Council</h1>
-                    <p class="text-xs text-gray-400">Real-time SF Civic Intelligence for NGOs</p>
+                    <p class="text-xs text-gray-400">Real-time SF Civic Intelligence for Citizens</p>
                 </div>
             </div>
             <div class="flex items-center gap-4">
@@ -96,18 +123,38 @@
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 py-6">
-        <!-- Stats Bar -->
-        <div id="stats-bar" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+    <main class="max-w-[1600px] mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-3">
+            <!-- Stats Bar -->
+            <div id="stats-bar" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            </div>
+
+            <!-- Agent Cards Grid -->
+            <div id="findings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <!-- Loading placeholders -->
+                <div class="col-span-full text-center py-20 text-gray-500">
+                    <div class="text-4xl mb-4">🏛️</div>
+                    <p class="text-lg">Agents are analyzing SF open data...</p>
+                    <p class="text-sm mt-2">First findings will appear within 60 seconds</p>
+                </div>
+            </div>
         </div>
 
-        <!-- Agent Cards Grid -->
-        <div id="findings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Loading placeholders -->
-            <div class="col-span-full text-center py-20 text-gray-500">
-                <div class="text-4xl mb-4">🏛️</div>
-                <p class="text-lg">Agents are analyzing SF open data...</p>
-                <p class="text-sm mt-2">First findings will appear within 60 seconds</p>
+        <!-- Right Side: Brain Feed -->
+        <div class="lg:col-span-1 flex flex-col gap-4">
+            <div
+                class="bg-gray-900 border border-gray-800 rounded-xl p-4 sticky top-24 max-h-[calc(100vh-120px)] flex flex-col">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
+                    <h2 class="font-bold flex items-center gap-2">
+                        <span class="text-indigo-400">🧠</span> Agent Brain Feed
+                    </h2>
+                    <span id="brain-count" class="text-[10px] bg-indigo-600 px-1.5 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="brain-feed" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                    <div class="text-center py-10 text-gray-600 text-xs italic">
+                        Agents are warming up their analytical models...
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -118,11 +165,17 @@
         <div class="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-lg relative">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold">Draft Email to City Officials</h3>
+                    <h3 class="text-lg font-bold">Share Report with City Officials</h3>
                     <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
                 </div>
                 <form id="email-form" class="space-y-3">
                     <input type="hidden" id="email-agent-name">
+                    <div class="flex items-center gap-2 bg-indigo-900/30 border border-indigo-800 p-2 rounded-lg mb-2">
+                        <input type="checkbox" id="email-to-admin" checked
+                            class="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600">
+                        <label for="email-to-admin" class="text-xs text-indigo-300 font-medium">Include City
+                            Administrator (Carmen Chu)</label>
+                    </div>
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Your Name</label>
                         <input type="text" id="email-citizen"
@@ -130,20 +183,14 @@
                             placeholder="A concerned resident" value="A concerned resident">
                     </div>
                     <div>
-                        <label class="block text-sm text-gray-400 mb-1">Desired Action (Auto-suggested)</label>
+                        <label class="block text-sm text-gray-400 mb-1">Desired Action (AI Suggested)</label>
                         <input type="text" id="email-outcome"
                             class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
                             placeholder="What should the city do?">
                     </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Additional Note (Optional)</label>
-                        <textarea id="email-context" rows="2"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
-                            placeholder="Add your personal experience here..."></textarea>
-                    </div>
                     <button type="submit"
                         class="w-full bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-medium transition">
-                        Generate & Finalize Email
+                        Finalize & View Report
                     </button>
                 </form>
                 <div id="email-result" class="hidden mt-4 bg-gray-800 rounded-lg p-4">

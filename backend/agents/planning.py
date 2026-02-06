@@ -74,8 +74,8 @@ Permits by type:
 Permits by status:
 {chr(10).join(f"- {s['status']}: {s['count']}" for s in data['by_status'])}"""
 
-        prompt = """Analyze building permit data for an NGO focused on housing and development.
+        prompt = """As an Expert Data Analyst, analyze building permit data for a citizen oversight dashboard.
 Identify trends in permit types, approval bottlenecks, and housing development patterns.
-Recommend policy actions to improve housing affordability and development processes."""
+Recommend policy actions to improve housing affordability and community-focused development."""
 
         return summary, prompt

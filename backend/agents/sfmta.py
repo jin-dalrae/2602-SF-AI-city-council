@@ -12,43 +12,55 @@ class SFMTAAgent(CityAgent):
     ]
 
     async def fetch_data(self) -> dict:
-        # Fare citation data - total count
-        citations = await self.socrata.fetch(
+        # Monthly trends
+        trends = await self.socrata.fetch_trends(
             self.datasets["citations"],
-            select="count(*) as total_citations",
-            limit=1,
+            date_field="citation_date",
+            days=180,
+            period="month"
         )
 
-        # Recent citations breakdown by violation description
-        recent = await self.socrata.fetch(
+        # Recent breakdown
+        recent = await self.socrata.fetch_recent(
             self.datasets["citations"],
+            date_field="citation_date",
+            days=30,
             select="violation_desc, count(*) as cnt",
             group="violation_desc",
             order="cnt DESC",
             limit=10,
         )
 
-        total = int(citations[0].get("total_citations", 0)) if citations else 0
+        total_30d = sum(int(r.get("cnt", 0)) for r in recent)
 
         return {
-            "total_citations": total,
+            "total_30d": total_30d,
+            "monthly_trends": [
+                {"month": r.get("period", "").split("T")[0][:7], "count": int(r.get("cnt", 0))}
+                for r in trends
+            ],
             "citation_types": [
                 {"violation": r.get("violation_desc", "Unknown"), "count": int(r.get("cnt", 0))}
                 for r in recent
             ],
-            "_counts": {"total_citations": total},
+            "_counts": {"last_30d_citations": total_30d},
         }
 
     def build_analysis_prompt(self, data: dict) -> tuple[str, str]:
-        summary = f"""SFMTA Transit Data:
-Total fare citations: {data['total_citations']}
+        summary = f"""SFMTA Transit Citation Analysis:
 
-Citation types:
+Monthly Citation Trends (Last 6 Months):
+{chr(10).join(f"- {t['month']}: {t['count']} citations" for t in data['monthly_trends'])}
+
+Recent 30-Day Snapshot:
+Total citations: {data['total_30d']}
+
+Violation Categories (Last 30 Days):
 {chr(10).join(f"- {c['violation']}: {c['count']}" for c in data['citation_types'])}"""
 
-        prompt = """Analyze transit fare citation data and current service context for an NGO
-focused on equitable transportation access.
-Consider how fare enforcement policies affect low-income riders.
-Recommend policy actions to improve transit equity and service reliability."""
+        prompt = """As an Expert Data Analyst, analyze the trajectory of transit enforcement.
+Identify if citations are increasing month-over-month.
+Consider the impact of these enforcement trends on transit equity and low-income riders.
+Recommend policy changes based on the observed data patterns."""
 
         return summary, prompt

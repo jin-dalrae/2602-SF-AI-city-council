@@ -3,7 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from backend.services.socrata import SocrataClient
-from backend.services import llm, you_api, storage
+from backend.services import llm, you_api, storage, actions
 
 
 
@@ -14,11 +14,17 @@ class CityAgent(ABC):
     news_query: str = ""  # Each agent sets a You.com search query for news
     datasets: dict[str, str] = {}  # {label: dataset_id}
     officials: list[dict] = []     # [{name, title, email}]
+    traits: list[str] = ["Expert Data Analyst"]
+    brain_log: list[dict] = []     # [{"message", "thought", "timestamp"}]
 
     def __init__(self, findings_store: dict, event_queue: asyncio.Queue):
         self.socrata = SocrataClient()
         self.findings_store = findings_store
         self.event_queue = event_queue
+        # Load traits if they exist in store (persistence)
+        stored = self.findings_store.get(f"_traits_{self.name}")
+        if stored:
+            self.traits = stored
 
     @abstractmethod
     async def fetch_data(self) -> dict:
@@ -41,11 +47,30 @@ class CityAgent(ABC):
 
     async def analyze(self, data: dict, news: list[str]) -> dict:
         data_summary, prompt = self.build_analysis_prompt(data)
+        
+        # --- Memory Retrieval ---
+        query_text = f"{self.name} {data_summary[:500]}"
+        query_emb = await llm.get_embedding(query_text)
+        memories = storage.search_memory(self.name, query_emb)
+        # ------------------------
+
         if news:
-            data_summary += "\n\nRecent News & Context:\n" + "\n".join(f"- {n}" for n in news)
-            prompt += "\nAlso consider the recent news context when forming your analysis and recommendations."
-        finding = await llm.analyze_data(self.name, data_summary, prompt)
+            data_summary += "\n\nRecent News context provided to you:\n" + "\n".join(f"- {n}" for n in news)
+            prompt += "\nReference the news context to reinforce your analysis."
+        
+        finding = await llm.analyze_data(self.name, data_summary, prompt, traits=self.traits, memories=memories)
+        
+        # --- World Verification Loop (You.com) ---
+        # Agent proactively checks if its theory matches recent public discussion
+        verification_query = f"San Francisco {finding.get('issue_title', '')} news 2026"
+        verification_news = await you_api.search_context(verification_query)
+        if verification_news and not (verification_news.startswith("Search error") or verification_news.startswith("You.com API")):
+            finding["verified_context"] = verification_news
+        # ----------------------------------------
+        
+        finding["recalled_memories"] = memories
         finding["news_context"] = news
+        finding["traits"] = self.traits
         return finding
 
     async def check_collaborations(self, all_findings: dict) -> dict | None:
@@ -97,6 +122,38 @@ class CityAgent(ABC):
                 self.fetch_news(),
             )
             finding = await self.analyze(data, news)
+            
+            # --- Active Action Loop (Composio) ---
+            action_result = await actions.trigger_civic_action(self.name, finding)
+            if action_result.get("status") == "success":
+                action_msg = {
+                    "agent_name": self.name,
+                    "message": f"🚀 Created Civic Ticket on GitHub for: {finding.get('issue_title')[:50]}...",
+                    "thought": "This severity warrants automated advocacy tracking.",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "icon": "🚀"
+                }
+                self.brain_log.append(action_msg)
+                await self.event_queue.put({"type": "brain", "data": action_msg})
+            # ------------------------------------
+
+            # --- Brain Evolution Step ---
+            evolution = await llm.evolve_brain(self.name, self.traits, finding)
+            if evolution.get("new_trait") and evolution["new_trait"] not in self.traits:
+                self.traits.append(evolution["new_trait"])
+                self.findings_store[f"_traits_{self.name}"] = self.traits
+
+            learning = {
+                "agent_name": self.name,
+                "message": evolution.get("learning_message", "Analyzed latest dataset."),
+                "thought": evolution.get("evolved_thought", ""),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "icon": self.icon
+            }
+            self.brain_log.append(learning)
+            await self.event_queue.put({"type": "brain", "data": learning})
+            # ---------------------------
+
             output = {
                 "agent_name": self.name,
                 "department": self.department,
@@ -104,11 +161,18 @@ class CityAgent(ABC):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "officials": self.officials,
                 "raw_counts": data.get("_counts", {}),
+                "traits": self.traits,
                 **finding,
             }
             self.findings_store[self.name] = output
             await self.event_queue.put({"type": "finding", "data": output})
             storage.append_to_history(output)  # Save to history
+
+            # --- Save to Episodic Memory ---
+            mem_summary = f"{finding.get('issue_title')}: {finding.get('summary')}"
+            mem_emb = await llm.get_embedding(mem_summary)
+            storage.save_memory(self.name, mem_summary, mem_emb)
+            # -------------------------------
 
             # Check collaborations after updating own findings
             collab = await self.check_collaborations(self.findings_store)

@@ -41,6 +41,11 @@ function connectSSE() {
         renderAll();
     });
 
+    evtSource.addEventListener('brain', (e) => {
+        const data = JSON.parse(e.data);
+        showBrainMessage(data);
+    });
+
     evtSource.addEventListener('heartbeat', () => { });
 
     evtSource.onerror = () => {
@@ -160,11 +165,41 @@ function renderCards() {
     grid.innerHTML = entries.map(f => renderCard(f)).join('');
 }
 
+let brainLogs = [];
+
+function showBrainMessage(data) {
+    const feed = document.getElementById('brain-feed');
+    const countEl = document.getElementById('brain-count');
+
+    brainLogs.unshift(data);
+    if (brainLogs.length > 50) brainLogs.pop();
+
+    countEl.textContent = brainLogs.length;
+
+    const html = brainLogs.map((log, idx) => `
+        <div class="${idx === 0 ? 'brain-flash' : ''} bg-gray-800/40 border border-gray-700/50 rounded-lg p-3 card-enter">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg">${log.icon || '🤖'}</span>
+                <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">${log.agent_name}</span>
+                <span class="text-[10px] text-gray-500 ml-auto">${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <p class="text-xs text-gray-200 font-medium leading-relaxed">${log.message}</p>
+            ${log.thought ? `<p class="text-[10px] text-gray-500 mt-1 italic border-l border-gray-700 pl-2">"${log.thought}"</p>` : ''}
+        </div>
+    `).join('');
+
+    feed.innerHTML = html;
+}
+
 function renderCard(f) {
     const isCollab = f.agent_name.startsWith('Collaboration:');
     const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
     const icon = ICONS[f.icon] || `<span class="text-lg">${f.icon || '📊'}</span>`;
     const cardId = f.agent_name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    const traitsHtml = (f.traits || []).map(t =>
+        `<span class="text-[10px] bg-indigo-900/40 text-indigo-300 border border-indigo-800/50 rounded-full px-2 py-0.5">${t}</span>`
+    ).join('');
 
     const metricsHtml = (f.key_metrics || []).slice(0, 4).map(m =>
         `<div class="bg-gray-800/50 rounded px-2 py-1.5 hover:bg-gray-800 transition">
@@ -225,6 +260,9 @@ function renderCard(f) {
                 <span class="text-xs ${sev.badge} rounded-full px-2 py-0.5 font-medium text-white uppercase animate-pulse">${f.severity}</span>
             </div>
 
+            <!-- Traits -->
+            ${traitsHtml ? `<div class="flex flex-wrap gap-1 mb-3">${traitsHtml}</div>` : ''}
+
             <!-- Issue Title -->
             <h4 class="font-semibold text-sm mb-2 group-hover:text-white transition">${f.issue_title || 'Analyzing...'}</h4>
 
@@ -247,7 +285,7 @@ function renderCard(f) {
                     <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
                         View Details
                     </button>
-                    ${!isCollab ? `<button onclick="event.stopPropagation(); openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-1.5 transition font-medium">Draft Email</button>` : ''}
+                    ${!isCollab ? `<button onclick="event.stopPropagation(); openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-1.5 transition font-medium">Share Report</button>` : ''}
                 </div>
             </div>
         </div>
@@ -371,6 +409,30 @@ function openDetailModal(agentName) {
         <div class="mb-6">
             <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">📋 Evidence & Data</h4>
             <ul class="space-y-1">${evidenceHtml}</ul>
+        </div>` : ''}
+
+        <!-- Recalled Memories (Continual Learning) -->
+        ${f.recalled_memories && f.recalled_memories.length > 0 ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-indigo-400 uppercase mb-3 text-xs flex items-center gap-2">
+                <span>🧠 Recalled Episodic Memory</span>
+                <span class="text-[10px] bg-indigo-900 px-1.5 py-0.5 rounded-full">Continual Learning</span>
+            </h4>
+            <div class="bg-indigo-900/10 border border-indigo-800/30 rounded-xl p-3 space-y-2">
+                ${f.recalled_memories.map(m => `<p class="text-xs text-gray-400 italic">"Matches past pattern: ${m}"</p>`).join('')}
+            </div>
+        </div>` : ''}
+
+        <!-- World Verification (You.com) -->
+        ${f.verified_context ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-green-400 uppercase mb-3 text-xs flex items-center gap-2">
+                <span>🌐 World Verification</span>
+                <span class="text-[10px] bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded-full">via You.com</span>
+            </h4>
+            <div class="bg-green-900/5 border border-green-800/30 rounded-xl p-3">
+                <p class="text-xs text-gray-400 line-clamp-3">${f.verified_context}</p>
+            </div>
         </div>` : ''}
         
         <!-- News Context -->
@@ -602,6 +664,11 @@ function openEmailModal(agentName) {
     document.getElementById('email-modal').classList.remove('hidden');
     document.getElementById('email-modal').classList.add('flex');
     document.body.style.overflow = 'hidden';
+
+    // Auto-trigger the first draft for the citizen
+    const form = document.getElementById('email-form');
+    // We use a slight delay to ensure modal is visible, or just call the event handler
+    form.dispatchEvent(new Event('submit'));
 }
 
 function closeModal() {
@@ -624,7 +691,7 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
                 agent_name: document.getElementById('email-agent-name').value,
                 citizen_name: document.getElementById('email-citizen').value,
                 desired_outcome: document.getElementById('email-outcome').value,
-                context: document.getElementById('email-context').value,
+                include_admin: document.getElementById('email-to-admin').checked
             }),
         });
         const result = await resp.json();

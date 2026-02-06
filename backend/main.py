@@ -225,7 +225,7 @@ class EmailRequest(BaseModel):
     agent_name: str
     citizen_name: str = ""
     desired_outcome: str = ""
-    context: str = ""
+    include_admin: bool = True
 
 
 @app.post("/api/email/draft")
@@ -240,6 +240,6 @@ async def create_email_draft(req: EmailRequest):
         agent_finding=finding,
         citizen_name=req.citizen_name,
         desired_outcome=req.desired_outcome,
-        context=req.context,
+        include_admin=req.include_admin,
     )
     return JSONResponse(content=result)

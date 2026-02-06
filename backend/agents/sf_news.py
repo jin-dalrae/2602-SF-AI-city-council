@@ -126,7 +126,7 @@ Analyze these recent San Francisco news headlines and provide:
 4. **Key Metrics**: List any numbers, percentages, or quantifiable data mentioned
 5. **Trending Topics**: List 3-5 topics that appear frequently (e.g., "housing", "transit", "public safety")
 6. **Relevant Neighborhoods**: Any specific SF neighborhoods mentioned
-7. **Recommended Actions**: What should NGOs or citizens focus on based on this news?
+7. **Recommended Actions**: What should citizens focus on based on this news?
 
 Focus on civic issues like housing, transportation, public safety, budget, and infrastructure.
 Identify connections between news items that reveal larger patterns.

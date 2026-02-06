@@ -63,6 +63,69 @@ def append_to_history(finding: dict) -> None:
         json.dump(history, f, indent=2, default=str)
 
 
+MEMORY_FILE = STORAGE_DIR / "agent_memory.json"
+
+
+def save_memory(agent_name: str, summary: str, embedding: list[float]) -> None:
+    """Save an agent's memory with its embedding."""
+    ensure_storage()
+    memories = []
+    if MEMORY_FILE.exists():
+        try:
+            with open(MEMORY_FILE, "r") as f:
+                memories = json.load(f)
+        except:
+            memories = []
+    
+    memories.append({
+        "agent": agent_name,
+        "summary": summary,
+        "embedding": embedding,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    # Keep last 200 memories
+    memories = memories[-200:]
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memories, f, indent=2)
+
+
+def search_memory(agent_name: str, query_embedding: list[float], limit: int = 3) -> list[str]:
+    """Find similar past memories for an agent using simple cosine similarity."""
+    if not MEMORY_FILE.exists() or not query_embedding:
+        return []
+    
+    try:
+        with open(MEMORY_FILE, "r") as f:
+            memories = json.load(f)
+    except:
+        return []
+    
+    # Filter for this agent's memories
+    agent_mems = [m for m in memories if m["agent"] == agent_name]
+    if not agent_mems:
+        return []
+    
+    import math
+
+    def cosine_sim(v1, v2):
+        if not v1 or not v2: return 0
+        dot = sum(a*b for a, b in zip(v1, v2))
+        mag1 = math.sqrt(sum(a*a for a in v1))
+        mag2 = math.sqrt(sum(b*b for b in v2))
+        if mag1 == 0 or mag2 == 0: return 0
+        return dot / (mag1 * mag2)
+
+    # Score and sort
+    scored = []
+    for m in agent_mems:
+        score = cosine_sim(query_embedding, m["embedding"])
+        scored.append((score, m["summary"]))
+    
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [s[1] for s in scored[:limit] if s[0] > 0.7] # Only return relevant memories
+
+
 def get_history(agent_name: str = None, limit: int = 50) -> list:
     """Get historical findings, optionally filtered by agent name."""
     if not HISTORY_FILE.exists():

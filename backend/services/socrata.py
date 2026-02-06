@@ -83,8 +83,16 @@ class SocrataClient:
         **kwargs
     ) -> list[dict]:
         """Fetch counts grouped by time period for trend analysis."""
-        trunc_func = "date_trunc_ym" if period == "month" else "date_trunc_ywd" if period == "week" else "date_trunc_y"
-        if period == "day": trunc_func = "date_trunc_yd"
+        # Fix: SoQL supports date_trunc_ym and date_trunc_yd reliable.
+        # Week support is inconsistent, so we'll fallback to month for stability
+        # or use date_trunc_yd and handle aggregation if needed.
+        # For now, let's keep it simple and supported.
+        if period == "month":
+            trunc_func = "date_trunc_ym"
+        elif period == "day":
+            trunc_func = "date_trunc_yd"
+        else: # Default to month for week/other for stability
+            trunc_func = "date_trunc_ym"
         
         select = f"{trunc_func}({date_field}) as period, count(*) as cnt"
         group = "period"

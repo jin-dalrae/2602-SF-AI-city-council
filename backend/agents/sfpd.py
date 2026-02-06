@@ -47,8 +47,8 @@ class SFPDAgent(CityAgent):
 
         return {
             "total_30d": total_30d,
-            "weekly_trends": [
-                {"week_start": r.get("period", "").split("T")[0], "count": int(r.get("cnt", 0))}
+            "monthly_trends": [
+                {"month": r.get("period", "").split("T")[0][:7], "count": int(r.get("cnt", 0))}
                 for r in trends
             ],
             "top_categories": [
@@ -65,8 +65,8 @@ class SFPDAgent(CityAgent):
     def build_analysis_prompt(self, data: dict) -> tuple[str, str]:
         summary = f"""San Francisco Incident Analysis:
 
-Weekly Incident Trends (Last 12 Weeks):
-{chr(10).join(f"- Week starting {t['week_start']}: {t['count']} incidents" for t in data['weekly_trends'])}
+Monthly Incident Trends (Last 90 Days):
+{chr(10).join(f"- {t['month']}: {t['count']} incidents" for t in data['monthly_trends'])}
 
 Recent 30-Day Snapshot:
 Total incidents: {data['total_30d']}
@@ -78,7 +78,7 @@ Incidents by District (Last 30 Days):
 {chr(10).join(f"- {d['district']}: {d['count']}" for d in data['districts'])}"""
 
         prompt = """As an Expert Data Analyst, identify significant shifts in public safety.
-Look at the Weekly Incident Trends: are certain weeks spiking unusually?
+Look at the Monthly Incident Trends: are incidents increasing month-over-month?
 Cross-reference the Top Categories with the Districts: which areas are seeing specific types of crime increase?
 Identify trends that require immediate community intervention or policy adjustment."""
 

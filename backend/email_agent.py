@@ -12,19 +12,25 @@ async def draft_email(
     agent_finding: dict,
     citizen_name: str,
     desired_outcome: str,
-    context: str,
+    include_admin: bool = True
 ) -> dict:
     """Generate a professional email draft for city officials from a citizen using Gemini."""
     officials = agent_finding.get("officials", [])
     to_addresses = [o.get("email", "") for o in officials if o.get("email")]
+    cc_addresses = []
+    
+    if include_admin:
+        cc_addresses.append("carmen.chu@sfgov.org")
+
     to_names = [f"{o.get('name', '')} ({o.get('title', '')})" for o in officials]
+    if include_admin:
+        to_names.append("Carmen Chu (City Administrator)")
 
     prompt = f"""Draft a professional email from a San Francisco citizen to a city official.
 
 Citizen Name: {citizen_name or 'A concerned resident'}
 Recipients: {', '.join(to_names)}
 Desired Outcome: {desired_outcome or agent_finding.get('solution', 'Action on this issue')}
-Additional Context: {context}
 
 Issue Found by AI Analysis:
 Title: {agent_finding.get('issue_title', 'N/A')}
@@ -37,12 +43,12 @@ Write a formal but compelling email that:
 2. References the specific data findings (minimum 2 data citations)
 3. Proposes the desired outcome or the AI-recommended solution
 4. Requests a response or specific action
-5. Includes a 'Data Sources' footer section with relevant URLs from SF Open Data
+5. Includes a 'Evidence Data Sources' footer section with relevant URLs from SF Open Data
 6. Is respectful and professional
 
 Return JSON with these fields:
 - "subject": email subject line
-- "body": full email body text (including the Data Sources footer)
+- "body": full email body text (including the Evidence Data Sources footer)
 - "to": list of recipient email addresses
 """
 
@@ -82,7 +88,7 @@ Return JSON with these fields:
             "email_draft": {
                 "subject": raw_result.get("subject", f"Priority: {agent_finding.get('issue_title')}"),
                 "to": to_addresses or raw_result.get("to", []),
-                "cc": [],
+                "cc": cc_addresses,
                 "body": raw_result.get("body", ""),
                 "data_sources": data_sources
             },
@@ -94,7 +100,7 @@ Return JSON with these fields:
             "email_draft": {
                 "subject": f"Regarding: {agent_finding.get('issue_title', 'City Issue')}",
                 "to": to_addresses,
-                "cc": [],
+                "cc": cc_addresses,
                 "body": f"Dear City Official,\n\nI am writing as a resident of San Francisco regarding {agent_finding.get('issue_title', 'a city issue')}.\n\n{agent_finding.get('summary', '')}\n\nI request {desired_outcome or 'action on this matter'}.\n\nSincerely,\n{citizen_name or 'A concerned resident'}",
                 "data_sources": []
             },
