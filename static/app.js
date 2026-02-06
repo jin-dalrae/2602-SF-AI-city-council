@@ -172,6 +172,9 @@ function renderCard(f) {
             <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-800">
                 <span class="text-xs text-gray-600">${timeAgo(f.timestamp)}</span>
                 <div class="flex gap-2">
+                    <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); shareFinding('${f.agent_name.replace(/'/g, "\\'")}')">
+                        Share Finding
+                    </button>
                     <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
                         View Details
                     </button>
@@ -353,12 +356,31 @@ function closeDetailModal() {
     selectedFinding = null;
 }
 
+function shareFinding(agentName) {
+    const f = findings[agentName];
+    if (!f) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('agent', agentName);
+    const shareUrl = url.toString();
+
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied Link!';
+        setTimeout(() => btn.textContent = originalText, 2000);
+    });
+}
+
 function copyToClipboard() {
     if (!selectedFinding) return;
     const f = selectedFinding;
+    const url = new URL(window.location.href);
+    url.searchParams.set('agent', f.agent_name);
+
     const text = `
 ${f.agent_name} - ${f.issue_title}
 Severity: ${f.severity}
+Link: ${url.toString()}
 
 ${f.summary}
 
@@ -369,7 +391,7 @@ ${(f.key_metrics || []).map(m => `- ${m.label || m.metric}: ${m.value}`).join('\
     `.trim();
 
     navigator.clipboard.writeText(text).then(() => {
-        alert('Copied to clipboard!');
+        alert('Copied full discovery to clipboard!');
     });
 }
 
@@ -404,7 +426,8 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
                 context: document.getElementById('email-context').value,
             }),
         });
-        const data = await resp.json();
+        const result = await resp.json();
+        const data = result.email_draft;
         document.getElementById('email-result-to').textContent = `To: ${(data.to || []).join(', ')}`;
         document.getElementById('email-result-subject').textContent = `Subject: ${data.subject}`;
         document.getElementById('email-result-body').textContent = data.body;

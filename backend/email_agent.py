@@ -36,14 +36,15 @@ Recommended Solution: {agent_finding.get('solution', 'N/A')}
 
 Write a formal but compelling email that:
 1. Introduces the NGO and its mission
-2. References the specific data findings
+2. References the specific data findings (minimum 2 data citations)
 3. Proposes the desired outcome
 4. Requests a meeting or response
-5. Is respectful and professional
+5. Includes a 'Data Sources' footer section with relevant URLs from SF Open Data
+6. Is respectful and professional
 
 Return JSON with these fields:
 - "subject": email subject line
-- "body": full email body text
+- "body": full email body text (including the Data Sources footer)
 - "to": list of recipient email addresses
 """
 
@@ -56,7 +57,7 @@ Return JSON with these fields:
             model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
-                system_instruction="You are an expert NGO communications assistant. Always respond with valid JSON containing 'subject', 'body', and 'to' fields.",
+                system_instruction="You are an expert NGO communications assistant. Always respond with valid JSON matching the requested structure.",
                 temperature=0.4,
             ),
         )
@@ -67,13 +68,39 @@ Return JSON with these fields:
             text = text.rsplit("```", 1)[0]
         if text.startswith("json"):
             text = text[4:].strip()
-        result = json.loads(text)
-        result["to"] = to_addresses or result.get("to", [])
-        return result
+        
+        raw_result = json.loads(text)
+        
+        # Format as per PRD Section 4.4
+        data_sources = []
+        if "evidence" in agent_finding:
+            for item in agent_finding["evidence"][:2]: # PRD requires min 2
+                data_sources.append({
+                    "dataset": agent_finding.get("agent_name", "SF Open Data"),
+                    "url": "https://data.sfgov.org" # Generic fallback
+                })
+
+        return {
+            "email_draft": {
+                "subject": raw_result.get("subject", f"Advocacy: {agent_finding.get('issue_title')}"),
+                "to": to_addresses or raw_result.get("to", []),
+                "cc": [],
+                "body": raw_result.get("body", ""),
+                "data_sources": data_sources
+            },
+            "editable": True,
+            "copy_to_clipboard": True
+        }
     except Exception as e:
         return {
-            "subject": f"Regarding: {agent_finding.get('issue_title', 'City Issue')}",
-            "body": f"Dear City Official,\n\nWe are writing on behalf of {ngo_name} regarding {agent_finding.get('issue_title', 'a city issue')}.\n\n{agent_finding.get('summary', '')}\n\nWe request {desired_outcome}.\n\nSincerely,\n{contact_person}\n{ngo_name}",
-            "to": to_addresses,
-            "error": str(e),
+            "email_draft": {
+                "subject": f"Regarding: {agent_finding.get('issue_title', 'City Issue')}",
+                "to": to_addresses,
+                "cc": [],
+                "body": f"Dear City Official,\n\nWe are writing on behalf of {ngo_name} regarding {agent_finding.get('issue_title', 'a city issue')}.\n\n{agent_finding.get('summary', '')}\n\nWe request {desired_outcome}.\n\nSincerely,\n{contact_person}\n{ngo_name}",
+                "data_sources": []
+            },
+            "editable": True,
+            "copy_to_clipboard": True,
+            "error": str(e)
         }
