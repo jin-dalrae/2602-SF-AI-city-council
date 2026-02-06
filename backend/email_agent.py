@@ -10,22 +10,20 @@ COMPOSIO_API_KEY = "ak_zMx6z54f0h6_e1BApUnw"
 
 async def draft_email(
     agent_finding: dict,
-    ngo_name: str,
+    citizen_name: str,
     desired_outcome: str,
     context: str,
-    contact_person: str,
 ) -> dict:
-    """Generate a professional email draft for city officials using Gemini."""
+    """Generate a professional email draft for city officials from a citizen using Gemini."""
     officials = agent_finding.get("officials", [])
     to_addresses = [o.get("email", "") for o in officials if o.get("email")]
     to_names = [f"{o.get('name', '')} ({o.get('title', '')})" for o in officials]
 
-    prompt = f"""Draft a professional email from an NGO to a city official.
+    prompt = f"""Draft a professional email from a San Francisco citizen to a city official.
 
-NGO Name: {ngo_name}
-Contact Person: {contact_person}
+Citizen Name: {citizen_name or 'A concerned resident'}
 Recipients: {', '.join(to_names)}
-Desired Outcome: {desired_outcome}
+Desired Outcome: {desired_outcome or agent_finding.get('solution', 'Action on this issue')}
 Additional Context: {context}
 
 Issue Found by AI Analysis:
@@ -35,10 +33,10 @@ Evidence: {json.dumps(agent_finding.get('evidence', []))}
 Recommended Solution: {agent_finding.get('solution', 'N/A')}
 
 Write a formal but compelling email that:
-1. Introduces the NGO and its mission
+1. Introduces the sender as a San Francisco resident
 2. References the specific data findings (minimum 2 data citations)
-3. Proposes the desired outcome
-4. Requests a meeting or response
+3. Proposes the desired outcome or the AI-recommended solution
+4. Requests a response or specific action
 5. Includes a 'Data Sources' footer section with relevant URLs from SF Open Data
 6. Is respectful and professional
 
@@ -57,7 +55,7 @@ Return JSON with these fields:
             model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
-                system_instruction="You are an expert NGO communications assistant. Always respond with valid JSON matching the requested structure.",
+                system_instruction="You are an expert civic communications assistant. Always respond with valid JSON matching the requested structure.",
                 temperature=0.4,
             ),
         )
@@ -82,7 +80,7 @@ Return JSON with these fields:
 
         return {
             "email_draft": {
-                "subject": raw_result.get("subject", f"Advocacy: {agent_finding.get('issue_title')}"),
+                "subject": raw_result.get("subject", f"Priority: {agent_finding.get('issue_title')}"),
                 "to": to_addresses or raw_result.get("to", []),
                 "cc": [],
                 "body": raw_result.get("body", ""),
@@ -97,7 +95,7 @@ Return JSON with these fields:
                 "subject": f"Regarding: {agent_finding.get('issue_title', 'City Issue')}",
                 "to": to_addresses,
                 "cc": [],
-                "body": f"Dear City Official,\n\nWe are writing on behalf of {ngo_name} regarding {agent_finding.get('issue_title', 'a city issue')}.\n\n{agent_finding.get('summary', '')}\n\nWe request {desired_outcome}.\n\nSincerely,\n{contact_person}\n{ngo_name}",
+                "body": f"Dear City Official,\n\nI am writing as a resident of San Francisco regarding {agent_finding.get('issue_title', 'a city issue')}.\n\n{agent_finding.get('summary', '')}\n\nI request {desired_outcome or 'action on this matter'}.\n\nSincerely,\n{citizen_name or 'A concerned resident'}",
                 "data_sources": []
             },
             "editable": True,

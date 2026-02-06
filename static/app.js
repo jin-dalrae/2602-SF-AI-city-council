@@ -2,6 +2,7 @@
 const findings = {};
 let lastUpdate = null;
 let selectedFinding = null;
+let isRunning = true;
 
 // ── Icons ──
 const ICONS = {
@@ -30,7 +31,7 @@ function connectSSE() {
     const statusEl = document.getElementById('connection-status');
 
     evtSource.onopen = () => {
-        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span> Live`;
+        updateUIState(true);
     };
 
     evtSource.addEventListener('finding', (e) => {
@@ -43,8 +44,75 @@ function connectSSE() {
     evtSource.addEventListener('heartbeat', () => { });
 
     evtSource.onerror = () => {
-        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 pulse-dot"></span> Reconnecting...`;
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 pulse-dot"></span> Offline`;
     };
+}
+
+async function startAgents() {
+    const btn = document.getElementById('btn-start');
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/agents/start', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            isRunning = true;
+            updateUIState();
+        }
+    } catch (err) {
+        console.error('Start error:', err);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function stopAgents() {
+    const btn = document.getElementById('btn-stop');
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/agents/stop', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            isRunning = false;
+            updateUIState();
+        }
+    } catch (err) {
+        console.error('Stop error:', err);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function updateUIState(connected = true) {
+    const statusEl = document.getElementById('connection-status');
+    const startBtn = document.getElementById('btn-start');
+    const stopBtn = document.getElementById('btn-stop');
+
+    if (!connected) {
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Disconnected`;
+        return;
+    }
+
+    if (isRunning) {
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span> Live Monitoring`;
+        startBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        stopBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+    } else {
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-500"></span> Standby`;
+        stopBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        startBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+    }
+}
+
+async function syncAgentStatus() {
+    try {
+        const resp = await fetch('/api/agents/status');
+        const data = await resp.json();
+        const prev = isRunning;
+        isRunning = data.is_running;
+        if (prev !== isRunning) updateUIState();
+    } catch (err) {
+        console.error('Status sync error:', err);
+    }
 }
 
 // ── Rendering ──
@@ -66,9 +134,10 @@ function renderStatsBar() {
     ];
 
     bar.innerHTML = stats.map(s => `
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center hover:border-gray-700 transition cursor-default">
-            <div class="text-2xl font-bold ${s.color}">${s.value}</div>
-            <div class="text-xs text-gray-500">${s.label}</div>
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center hover:border-indigo-500 hover:bg-gray-800/50 transition cursor-pointer group"
+             onclick="showStatsModal('${s.label}')">
+            <div class="text-2xl font-bold ${s.color} group-hover:scale-110 transition-transform">${s.value}</div>
+            <div class="text-xs text-gray-500 group-hover:text-gray-300 transition">${s.label}</div>
         </div>
     `).join('');
 }
@@ -347,12 +416,14 @@ function openDetailModal(agentName) {
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeDetailModal() {
     const modal = document.getElementById('detail-modal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    document.body.style.overflow = '';
     selectedFinding = null;
 }
 
@@ -395,17 +466,148 @@ ${(f.key_metrics || []).map(m => `- ${m.label || m.metric}: ${m.value}`).join('\
     });
 }
 
+// ── Stats Modal ──
+async function showStatsModal(label) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('detail-content');
+    let html = '';
+
+    if (label === 'Active Agents') {
+        try {
+            const resp = await fetch('/api/agents/status');
+            const data = await resp.json();
+            const agents = data.agents || {};
+
+            html = `
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <span class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-sm text-white font-bold">🤖</span>
+                        Active Agent Status
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-1">Real-time status of all marathon-mode agents</p>
+                </div>
+                <div class="space-y-3">
+                    ${Object.entries(agents).map(([name, status]) => `
+                        <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-bold text-white">${name}</span>
+                                <span class="text-xs px-2 py-1 rounded-full font-medium ${status.status.includes('RUNNING') ? 'bg-green-500/10 text-green-400' :
+                    status.status.includes('ERROR') ? 'bg-red-500/10 text-red-400' : 'bg-gray-700 text-gray-400'
+                }">${status.status}</span>
+                            </div>
+                            <p class="text-xs text-gray-400">${status.details || 'Operational'}</p>
+                            <p class="text-[10px] text-gray-600 mt-2">Last loop: ${timeAgo(status.updated_at)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } catch (err) {
+            html = `<p class="text-red-400 p-4">Error loading agent status: ${err.message}</p>`;
+        }
+    } else if (label === 'Urgent Issues' || label === 'Moderate Issues') {
+        const isUrgent = label === 'Urgent Issues';
+        const filtered = Object.values(findings).filter(f => {
+            if (f.agent_name.startsWith('Collaboration:') || f.agent_name === 'SF News Agent') return false;
+            return isUrgent ? (f.severity === 'critical' || f.severity === 'urgent') :
+                (f.severity === 'high' || f.severity === 'moderate' || f.severity === 'medium');
+        });
+
+        html = `
+            <div class="mb-6">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 ${isUrgent ? 'bg-red-600' : 'bg-orange-600'} rounded-lg flex items-center justify-center text-sm text-white font-bold">⚠️</span>
+                    ${label}
+                </h2>
+                <p class="text-xs text-gray-500 mt-1">Aggregated detections across all departments</p>
+            </div>
+            <div class="space-y-3">
+                ${filtered.length ? filtered.map(f => `
+                    <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800 cursor-pointer hover:border-gray-600 group transition" onclick="openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold text-indigo-400 uppercase">${f.agent_name}</span>
+                            <span class="text-[10px] text-gray-600">${timeAgo(f.timestamp)}</span>
+                        </div>
+                        <h3 class="text-sm font-semibold text-white mb-1 group-hover:text-indigo-400 transition">${f.issue_title}</h3>
+                        <p class="text-xs text-gray-400 line-clamp-2">${f.summary}</p>
+                    </div>
+                `).join('') : '<p class="text-gray-500 text-center py-10">No issues currently flagged in this category.</p>'}
+            </div>
+        `;
+    } else if (label === 'Collaborations') {
+        const collabs = Object.values(findings).filter(f => f.agent_name.startsWith('Collaboration:'));
+        html = `
+            <div class="mb-6">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-sm text-white font-bold">🔗</span>
+                    Cross-Agency Collaborations
+                </h2>
+                <p class="text-xs text-gray-500 mt-1">Joint analysis automatically triggered by overlapping datasets</p>
+            </div>
+            <div class="space-y-3">
+                ${collabs.length ? collabs.map(f => `
+                    <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800 cursor-pointer hover:border-gray-600 group transition" onclick="openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+                         <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] text-gray-600">${timeAgo(f.timestamp)}</span>
+                        </div>
+                        <h3 class="text-sm font-semibold text-white mb-1 group-hover:text-purple-400 transition">${f.agent_name.replace('Collaboration: ', '')}</h3>
+                        <p class="text-xs text-gray-400 line-clamp-2">${f.issue_title}</p>
+                    </div>
+                `).join('') : `
+                    <div class="text-center py-10">
+                        <div class="text-4xl mb-4">🤝</div>
+                        <p class="text-gray-500">No active collaborations. Agents are currently cross-referencing datasets for overlaps.</p>
+                    </div>
+                `}
+            </div>
+        `;
+    } else if (label === 'Data Points') {
+        const agentFindings = Object.values(findings).filter(f => !f.agent_name.startsWith('Collaboration:') && f.agent_name !== 'SF News Agent');
+        html = `
+            <div class="mb-6">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <span class="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center text-sm text-white font-bold">📊</span>
+                    Key Civic Metrics
+                </h2>
+                <p class="text-xs text-gray-500 mt-1">Real-time data points extracted from the latest SF Open Data harvests</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${agentFindings.flatMap(f => (f.key_metrics || []).map(m => `
+                    <div class="bg-gray-800/50 rounded-xl p-3 border border-gray-800 hover:border-cyan-500 transition cursor-default">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">${f.agent_name}</div>
+                        </div>
+                        <div class="text-xs text-gray-400 font-medium">${m.label || m.metric}</div>
+                        <div class="text-xl font-bold text-white">${m.value}</div>
+                    </div>
+                `)).join('')}
+            </div>
+            ${agentFindings.length === 0 ? '<p class="text-gray-500 text-center py-10">Waiting for agents to extract first metrics...</p>' : ''}
+        `;
+    }
+
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+
 // ── Email Modal ──
 function openEmailModal(agentName) {
+    const f = findings[agentName];
+    if (!f) return;
+
     document.getElementById('email-agent-name').value = agentName;
+    document.getElementById('email-outcome').value = f.solution || '';
     document.getElementById('email-result').classList.add('hidden');
     document.getElementById('email-modal').classList.remove('hidden');
     document.getElementById('email-modal').classList.add('flex');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeModal() {
     document.getElementById('email-modal').classList.add('hidden');
     document.getElementById('email-modal').classList.remove('flex');
+    document.body.style.overflow = '';
 }
 
 document.getElementById('email-form').addEventListener('submit', async (e) => {
@@ -420,8 +622,7 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 agent_name: document.getElementById('email-agent-name').value,
-                ngo_name: document.getElementById('email-ngo').value,
-                contact_person: document.getElementById('email-contact').value,
+                citizen_name: document.getElementById('email-citizen').value,
                 desired_outcome: document.getElementById('email-outcome').value,
                 context: document.getElementById('email-context').value,
             }),
@@ -459,4 +660,6 @@ document.addEventListener('keydown', (e) => {
 
 // ── Init ──
 connectSSE();
+syncAgentStatus();
 setInterval(updateTimestamp, 5000);
+setInterval(syncAgentStatus, 10000);

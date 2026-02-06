@@ -84,6 +84,50 @@ async def _auto_save_loop():
             logger.info(f"💾 Auto-saved {len(findings_store)} findings to disk")
 
 
+async def start_all_agents():
+    """Start all agents if not already running."""
+    global agent_tasks
+    if agent_tasks:
+        logger.info("⚠️ Agents are already running")
+        return False
+        
+    logger.info("🚀 Starting all agents...")
+    news_task = asyncio.create_task(_launch_news_agent())
+    agent_tasks.append(news_task)
+    
+    for i, AgentClass in enumerate(ALL_AGENTS):
+        task = asyncio.create_task(_launch_agent(AgentClass, delay=(i + 1) * 5))
+        agent_tasks.append(task)
+    
+    logger.info(f"✅ Launched {len(agent_tasks)} agent tasks")
+    return True
+
+
+async def stop_all_agents():
+    """Stop all running agents."""
+    global agent_tasks
+    if not agent_tasks:
+        logger.info("⚠️ No agents are currently running")
+        return False
+        
+    logger.info("🛑 Stopping all agents...")
+    for task in agent_tasks:
+        task.cancel()
+    
+    # Wait for tasks to be cancelled
+    if agent_tasks:
+        await asyncio.gather(*agent_tasks, return_exceptions=True)
+    
+    agent_tasks = []
+    # Set status to stopped for all
+    for name in agent_status:
+        if agent_status[name]["status"] != "❌ ERROR":
+            agent_status[name]["status"] = "🔴 STOPPED"
+            
+    logger.info("🔴 All agents stopped")
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load previous findings from disk
@@ -95,27 +139,16 @@ async def lifespan(app: FastAPI):
     # Start auto-save task
     save_task = asyncio.create_task(_auto_save_loop())
     
-    # Startup: launch news agent first, then data agents with 5s stagger
-    logger.info("🚀 Starting all agents...")
-    news_task = asyncio.create_task(_launch_news_agent())
-    agent_tasks.append(news_task)
+    # Startup: launch agents
+    await start_all_agents()
     
-    for i, AgentClass in enumerate(ALL_AGENTS):
-        task = asyncio.create_task(_launch_agent(AgentClass, delay=(i + 1) * 5))
-        agent_tasks.append(task)
-    
-    logger.info(f"✅ Launched {len(agent_tasks)} agent tasks")
     yield
     
     # Shutdown: save findings and cancel all agents
-    logger.info("🛑 Shutting down agents...")
+    logger.info("🛑 Shutting down server...")
     storage.save_findings(findings_store)
-    logger.info("💾 Final save completed")
-    
     save_task.cancel()
-    for task in agent_tasks:
-        task.cancel()
-    logger.info("🔴 All agents stopped")
+    await stop_all_agents()
 
 
 app = FastAPI(title="AI City Council", lifespan=lifespan)
@@ -149,16 +182,22 @@ async def get_agent_status():
     """Get the current status of all agents."""
     return JSONResponse(content={
         "agents": agent_status,
+        "is_running": len(agent_tasks) > 0,
         "total_findings": len([k for k in findings_store if not k.startswith("_")]),
         "server_time": datetime.now(timezone.utc).isoformat(),
     })
 
 
-@app.get("/api/findings/history")
-async def get_findings_history(agent_name: str = None, limit: int = 50):
-    """Get historical findings, optionally filtered by agent name."""
-    history = storage.get_history(agent_name=agent_name, limit=limit)
-    return JSONResponse(content=history)
+@app.post("/api/agents/start")
+async def api_start_agents():
+    success = await start_all_agents()
+    return JSONResponse(content={"success": success, "message": "Agents started" if success else "Already running"})
+
+
+@app.post("/api/agents/stop")
+async def api_stop_agents():
+    success = await stop_all_agents()
+    return JSONResponse(content={"success": success, "message": "Agents stopped" if success else "Not running"})
 
 @app.get("/api/findings")
 async def stream_findings(request: Request):
@@ -184,10 +223,9 @@ async def stream_findings(request: Request):
 
 class EmailRequest(BaseModel):
     agent_name: str
-    ngo_name: str
-    desired_outcome: str
+    citizen_name: str = ""
+    desired_outcome: str = ""
     context: str = ""
-    contact_person: str = ""
 
 
 @app.post("/api/email/draft")
@@ -200,9 +238,8 @@ async def create_email_draft(req: EmailRequest):
         )
     result = await draft_email(
         agent_finding=finding,
-        ngo_name=req.ngo_name,
+        citizen_name=req.citizen_name,
         desired_outcome=req.desired_outcome,
         context=req.context,
-        contact_person=req.contact_person,
     )
     return JSONResponse(content=result)

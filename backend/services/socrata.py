@@ -74,5 +74,31 @@ class SocrataClient:
             where = f"{where} AND ({kwargs.pop('where')})"
         return await self.fetch(dataset_id, where=where, **kwargs)
 
+    async def fetch_trends(
+        self,
+        dataset_id: str,
+        date_field: str,
+        days: int = 180,
+        period: str = "month", # "month", "week", "day"
+        **kwargs
+    ) -> list[dict]:
+        """Fetch counts grouped by time period for trend analysis."""
+        trunc_func = "date_trunc_ym" if period == "month" else "date_trunc_ywd" if period == "week" else "date_trunc_y"
+        if period == "day": trunc_func = "date_trunc_yd"
+        
+        select = f"{trunc_func}({date_field}) as period, count(*) as cnt"
+        group = "period"
+        order = "period DESC"
+        
+        return await self.fetch_recent(
+            dataset_id, 
+            date_field=date_field, 
+            days=days, 
+            select=select, 
+            group=group, 
+            order=order,
+            **kwargs
+        )
+
     async def close(self):
         await self._client.aclose()
