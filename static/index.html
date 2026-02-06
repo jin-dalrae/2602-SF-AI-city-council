@@ -1,28 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI City Council - SF Civic Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .pulse-dot { animation: pulse-dot 2s infinite; }
-        .severity-critical { border-left: 4px solid #ef4444; }
-        .severity-high { border-left: 4px solid #f97316; }
-        .severity-medium { border-left: 4px solid #eab308; }
-        .severity-low { border-left: 4px solid #22c55e; }
-        .card-enter { animation: slideUp 0.4s ease-out; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .collaboration-card { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); }
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .pulse-dot {
+            animation: pulse-dot 2s infinite;
+        }
+
+        .severity-critical {
+            border-left: 4px solid #ef4444;
+        }
+
+        .severity-high {
+            border-left: 4px solid #f97316;
+        }
+
+        .severity-medium {
+            border-left: 4px solid #eab308;
+        }
+
+        .severity-low {
+            border-left: 4px solid #22c55e;
+        }
+
+        .card-enter {
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .collaboration-card {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        }
     </style>
 </head>
+
 <body class="bg-gray-950 text-gray-100 min-h-screen">
     <!-- Header -->
     <header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-xl font-bold">AI</div>
+                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-xl font-bold">AI
+                </div>
                 <div>
                     <h1 class="text-xl font-bold">AI City Council</h1>
                     <p class="text-xs text-gray-400">Real-time SF Civic Intelligence for NGOs</p>
@@ -66,21 +111,30 @@
                 <input type="hidden" id="email-agent-name">
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">NGO Name</label>
-                    <input type="text" id="email-ngo" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Your organization name">
+                    <input type="text" id="email-ngo"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Your organization name">
                 </div>
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">Contact Person</label>
-                    <input type="text" id="email-contact" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Your name">
+                    <input type="text" id="email-contact"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Your name">
                 </div>
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">Desired Outcome</label>
-                    <input type="text" id="email-outcome" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="What action do you want the city to take?">
+                    <input type="text" id="email-outcome"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+                        placeholder="What action do you want the city to take?">
                 </div>
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">Additional Context</label>
-                    <textarea id="email-context" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Any additional context..."></textarea>
+                    <textarea id="email-context" rows="2"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Any additional context..."></textarea>
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-medium transition">
+                <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-medium transition">
                     Generate Email Draft
                 </button>
             </form>
@@ -93,6 +147,19 @@
         </div>
     </div>
 
+    <!-- Detail Modal -->
+    <div id="detail-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center overflow-y-auto p-4">
+        <div class="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-2xl mx-auto my-8 relative">
+            <button onclick="closeDetailModal()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl z-10">&times;</button>
+            <div id="detail-content" class="p-6">
+                <!-- Content populated by JS -->
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js"></script>
 </body>
+
 </html>

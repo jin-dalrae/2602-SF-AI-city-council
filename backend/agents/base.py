@@ -69,7 +69,9 @@ class CityAgent(ABC):
                 my_keywords.add(cleaned)
 
         for other_name, other_finding in all_findings.items():
-            if other_name == self.name or other_name.startswith("Collaboration:"):
+            if other_name == self.name or other_name.startswith("Collaboration:") or other_name.startswith("_"):
+                continue
+            if not isinstance(other_finding, dict):
                 continue
             other_text = " ".join([
                 other_finding.get("issue_title", ""),

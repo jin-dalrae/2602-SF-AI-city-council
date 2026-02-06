@@ -1,6 +1,7 @@
 // ── State ──
 const findings = {};
 let lastUpdate = null;
+let selectedFinding = null;
 
 // ── Icons ──
 const ICONS = {
@@ -10,13 +11,17 @@ const ICONS = {
     building: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`,
     bus: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-4 4v4m-4-4h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>`,
     link: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>`,
+    '📰': `<span class="text-lg">📰</span>`,
 };
 
 const SEVERITY_COLORS = {
-    critical: { bg: 'bg-red-500/10', text: 'text-red-400', badge: 'bg-red-500' },
-    high: { bg: 'bg-orange-500/10', text: 'text-orange-400', badge: 'bg-orange-500' },
-    medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', badge: 'bg-yellow-500' },
-    low: { bg: 'bg-green-500/10', text: 'text-green-400', badge: 'bg-green-500' },
+    critical: { bg: 'bg-red-500/10', text: 'text-red-400', badge: 'bg-red-500', border: 'border-red-500' },
+    urgent: { bg: 'bg-red-500/10', text: 'text-red-400', badge: 'bg-red-500', border: 'border-red-500' },
+    high: { bg: 'bg-orange-500/10', text: 'text-orange-400', badge: 'bg-orange-500', border: 'border-orange-500' },
+    moderate: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', badge: 'bg-yellow-500', border: 'border-yellow-500' },
+    medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', badge: 'bg-yellow-500', border: 'border-yellow-500' },
+    low: { bg: 'bg-green-500/10', text: 'text-green-400', badge: 'bg-green-500', border: 'border-green-500' },
+    improving: { bg: 'bg-blue-500/10', text: 'text-blue-400', badge: 'bg-blue-500', border: 'border-blue-500' },
 };
 
 // ── SSE Connection ──
@@ -35,7 +40,7 @@ function connectSSE() {
         renderAll();
     });
 
-    evtSource.addEventListener('heartbeat', () => {});
+    evtSource.addEventListener('heartbeat', () => { });
 
     evtSource.onerror = () => {
         statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 pulse-dot"></span> Reconnecting...`;
@@ -54,14 +59,14 @@ function renderStatsBar() {
     const agentFindings = Object.values(findings).filter(f => !f.agent_name.startsWith('Collaboration:'));
     const stats = [
         { label: 'Active Agents', value: agentFindings.length, color: 'text-indigo-400' },
-        { label: 'Critical Issues', value: agentFindings.filter(f => f.severity === 'critical').length, color: 'text-red-400' },
-        { label: 'High Issues', value: agentFindings.filter(f => f.severity === 'high').length, color: 'text-orange-400' },
+        { label: 'Urgent Issues', value: agentFindings.filter(f => f.severity === 'critical' || f.severity === 'urgent').length, color: 'text-red-400' },
+        { label: 'Moderate Issues', value: agentFindings.filter(f => f.severity === 'high' || f.severity === 'moderate' || f.severity === 'medium').length, color: 'text-orange-400' },
         { label: 'Collaborations', value: Object.keys(findings).filter(k => k.startsWith('Collaboration:')).length, color: 'text-purple-400' },
         { label: 'Data Points', value: agentFindings.reduce((sum, f) => sum + (f.key_metrics?.length || 0), 0), color: 'text-cyan-400' },
     ];
 
     bar.innerHTML = stats.map(s => `
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center hover:border-gray-700 transition cursor-default">
             <div class="text-2xl font-bold ${s.color}">${s.value}</div>
             <div class="text-xs text-gray-500">${s.label}</div>
         </div>
@@ -75,7 +80,7 @@ function renderCards() {
     if (entries.length === 0) return;
 
     // Sort: collaborations last, then by severity
-    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const severityOrder = { critical: 0, urgent: 0, high: 1, moderate: 2, medium: 2, low: 3, improving: 4 };
     entries.sort((a, b) => {
         const aCollab = a.agent_name.startsWith('Collaboration:') ? 1 : 0;
         const bCollab = b.agent_name.startsWith('Collaboration:') ? 1 : 0;
@@ -89,76 +94,89 @@ function renderCards() {
 function renderCard(f) {
     const isCollab = f.agent_name.startsWith('Collaboration:');
     const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
-    const icon = ICONS[f.icon] || `<span class="text-lg">${f.icon}</span>`;
+    const icon = ICONS[f.icon] || `<span class="text-lg">${f.icon || '📊'}</span>`;
     const cardId = f.agent_name.replace(/[^a-zA-Z0-9]/g, '_');
 
-    const metricsHtml = (f.key_metrics || []).map(m =>
-        `<div class="bg-gray-800/50 rounded px-2 py-1">
-            <div class="text-xs text-gray-500">${m.label}</div>
+    const metricsHtml = (f.key_metrics || []).slice(0, 4).map(m =>
+        `<div class="bg-gray-800/50 rounded px-2 py-1.5 hover:bg-gray-800 transition">
+            <div class="text-xs text-gray-500">${m.label || m.metric || 'Metric'}</div>
             <div class="text-sm font-medium">${m.value}</div>
         </div>`
     ).join('');
 
+    const officialsHtml = (f.officials || []).length > 0
+        ? `<div class="mt-2">
+            <p class="text-xs font-medium text-gray-400 mb-1">Contact Officials:</p>
+            ${f.officials.slice(0, 2).map(o => `
+                <div class="text-xs text-gray-500 mb-1">
+                    <span class="text-indigo-400">${o.name}</span> - ${o.title}
+                    ${o.email ? `<br><a href="mailto:${o.email}" class="text-blue-400 hover:underline">${o.email}</a>` : ''}
+                </div>
+            `).join('')}
+           </div>`
+        : '';
+
     const evidenceHtml = (f.evidence || []).slice(0, 3).map(e =>
-        `<li class="text-xs text-gray-400">${e}</li>`
+        `<li class="text-xs text-gray-400">${typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e)}</li>`
     ).join('');
 
     const newsHtml = (f.news_context || []).length > 0
-        ? `<div class="mt-2 border-t border-gray-700 pt-2">
-            <p class="text-xs font-medium text-indigo-400 mb-1">Related News:</p>
-            ${f.news_context.slice(0, 2).map(n => `<p class="text-xs text-gray-400 mb-1">• ${n}</p>`).join('')}
+        ? `<div class="mt-3 border-t border-gray-700 pt-2">
+            <p class="text-xs font-medium text-indigo-400 mb-1">📰 Related News (${f.news_context.length}):</p>
+            ${f.news_context.slice(0, 3).map(n => `<p class="text-xs text-gray-400 mb-1">• ${n.substring(0, 120)}${n.length > 120 ? '...' : ''}</p>`).join('')}
+           </div>`
+        : '';
+
+    const trendingHtml = (f.trending_topics || []).length > 0
+        ? `<div class="flex flex-wrap gap-1 mt-2">
+            ${f.trending_topics.map(t => `<span class="text-xs bg-indigo-900/50 text-indigo-300 rounded px-2 py-0.5">#${t}</span>`).join('')}
            </div>`
         : '';
 
     const neighborhoodsHtml = (f.affected_neighborhoods || []).length > 0
         ? `<div class="flex flex-wrap gap-1 mt-2">
+            <span class="text-xs text-gray-500">Areas: </span>
             ${f.affected_neighborhoods.map(n => `<span class="text-xs bg-gray-800 text-gray-400 rounded px-1.5 py-0.5">${n}</span>`).join('')}
            </div>`
         : '';
 
-    const emailBtn = !isCollab
-        ? `<button onclick="openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-1.5 transition">Draft Email</button>`
-        : '';
-
     return `
-    <div class="card-enter ${isCollab ? 'collaboration-card' : 'bg-gray-900'} border border-gray-800 rounded-xl overflow-hidden severity-${f.severity}">
+    <div class="card-enter ${isCollab ? 'collaboration-card' : 'bg-gray-900'} border ${sev.border || 'border-gray-800'} rounded-xl overflow-hidden hover:shadow-lg hover:shadow-${sev.badge?.replace('bg-', '')}/10 transition-all duration-300 cursor-pointer group"
+         onclick="openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
         <div class="p-4">
             <!-- Header -->
             <div class="flex items-start justify-between mb-3">
                 <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 ${sev.bg} ${sev.text} rounded-lg flex items-center justify-center">${icon}</div>
+                    <div class="w-9 h-9 ${sev.bg} ${sev.text} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">${icon}</div>
                     <div>
-                        <h3 class="text-sm font-bold">${f.agent_name}</h3>
+                        <h3 class="text-sm font-bold group-hover:text-indigo-400 transition">${f.agent_name}</h3>
                         <p class="text-xs text-gray-500">${f.department}</p>
                     </div>
                 </div>
-                <span class="text-xs ${sev.badge} rounded-full px-2 py-0.5 font-medium text-white uppercase">${f.severity}</span>
+                <span class="text-xs ${sev.badge} rounded-full px-2 py-0.5 font-medium text-white uppercase animate-pulse">${f.severity}</span>
             </div>
 
             <!-- Issue Title -->
-            <h4 class="font-semibold text-sm mb-2">${f.issue_title || 'Analyzing...'}</h4>
+            <h4 class="font-semibold text-sm mb-2 group-hover:text-white transition">${f.issue_title || 'Analyzing...'}</h4>
 
             <!-- Summary -->
-            <p class="text-xs text-gray-400 mb-3 line-clamp-3">${f.summary || ''}</p>
+            <p class="text-xs text-gray-400 mb-3 line-clamp-2">${f.summary || ''}</p>
 
             <!-- Metrics -->
             ${metricsHtml ? `<div class="grid grid-cols-2 gap-1.5 mb-3">${metricsHtml}</div>` : ''}
 
-            <!-- Details (collapsible) -->
-            <details class="group">
-                <summary class="text-xs text-indigo-400 cursor-pointer hover:text-indigo-300">View Details</summary>
-                <div class="mt-2 space-y-2">
-                    ${f.solution ? `<div><p class="text-xs font-medium text-gray-300 mb-1">Recommendation:</p><p class="text-xs text-gray-400">${f.solution}</p></div>` : ''}
-                    ${evidenceHtml ? `<div><p class="text-xs font-medium text-gray-300 mb-1">Evidence:</p><ul class="list-disc list-inside space-y-0.5">${evidenceHtml}</ul></div>` : ''}
-                    ${newsHtml}
-                    ${neighborhoodsHtml}
-                </div>
-            </details>
+            <!-- Trending Topics (for news agent) -->
+            ${trendingHtml}
 
             <!-- Footer -->
             <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-800">
                 <span class="text-xs text-gray-600">${timeAgo(f.timestamp)}</span>
-                ${emailBtn}
+                <div class="flex gap-2">
+                    <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+                        View Details
+                    </button>
+                    ${!isCollab ? `<button onclick="event.stopPropagation(); openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-1.5 transition font-medium">Draft Email</button>` : ''}
+                </div>
             </div>
         </div>
     </div>`;
@@ -177,6 +195,182 @@ function updateTimestamp() {
     if (lastUpdate) {
         el.textContent = `Updated ${timeAgo(lastUpdate.toISOString())}`;
     }
+}
+
+// ── Detail Modal ──
+function openDetailModal(agentName) {
+    const f = findings[agentName];
+    if (!f) return;
+
+    selectedFinding = f;
+    const modal = document.getElementById('detail-modal');
+    const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
+    const icon = ICONS[f.icon] || `<span class="text-2xl">${f.icon || '📊'}</span>`;
+
+    // Build detailed content
+    const metricsHtml = (f.key_metrics || []).map(m =>
+        `<div class="bg-gray-800 rounded-lg p-3">
+            <div class="text-xs text-gray-500 mb-1">${m.label || m.metric || 'Metric'}</div>
+            <div class="text-lg font-bold ${sev.text}">${m.value}</div>
+        </div>`
+    ).join('');
+
+    const evidenceHtml = (f.evidence || []).map(e =>
+        `<li class="text-sm text-gray-300 mb-2 pl-2 border-l-2 border-indigo-500">
+            ${typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e)}
+        </li>`
+    ).join('');
+
+    const officialsHtml = (f.officials || []).map(o => `
+        <div class="bg-gray-800 rounded-lg p-3 flex items-start gap-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                ${o.name.charAt(0)}
+            </div>
+            <div>
+                <div class="font-medium text-white">${o.name}</div>
+                <div class="text-xs text-gray-400">${o.title}${o.department ? ` • ${o.department}` : ''}</div>
+                ${o.email ? `<a href="mailto:${o.email}" class="text-xs text-indigo-400 hover:underline">${o.email}</a>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    const newsHtml = (f.news_context || []).map(n => `
+        <div class="text-sm text-gray-300 mb-2 pl-3 border-l-2 border-yellow-500">
+            ${n}
+        </div>
+    `).join('');
+
+    const rawHeadlinesHtml = (f.raw_headlines || []).map(h => `
+        <div class="text-sm text-gray-400 mb-1">• ${h}</div>
+    `).join('');
+
+    const neighborhoodsHtml = (f.affected_neighborhoods || []).map(n =>
+        `<span class="text-sm bg-gray-800 text-gray-300 rounded-lg px-3 py-1">${n}</span>`
+    ).join('');
+
+    const trendingHtml = (f.trending_topics || []).map(t =>
+        `<span class="text-sm bg-indigo-900/50 text-indigo-300 rounded-lg px-3 py-1">#${t}</span>`
+    ).join('');
+
+    document.getElementById('detail-content').innerHTML = `
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-6">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 ${sev.bg} ${sev.text} rounded-xl flex items-center justify-center text-2xl">${icon}</div>
+                <div>
+                    <h2 class="text-xl font-bold">${f.agent_name}</h2>
+                    <p class="text-sm text-gray-400">${f.department} • ${timeAgo(f.timestamp)}</p>
+                </div>
+            </div>
+            <span class="text-sm ${sev.badge} rounded-full px-3 py-1 font-medium text-white uppercase">${f.severity}</span>
+        </div>
+        
+        <!-- Issue Title -->
+        <div class="bg-gray-800/50 rounded-xl p-4 mb-6">
+            <h3 class="text-lg font-bold mb-2">${f.issue_title || 'Analysis in Progress'}</h3>
+            <p class="text-gray-300">${f.summary || 'Gathering data...'}</p>
+        </div>
+        
+        <!-- Metrics Grid -->
+        ${metricsHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">Key Metrics</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">${metricsHtml}</div>
+        </div>` : ''}
+        
+        <!-- Trending Topics -->
+        ${trendingHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">Trending Topics</h4>
+            <div class="flex flex-wrap gap-2">${trendingHtml}</div>
+        </div>` : ''}
+        
+        <!-- Recommendation -->
+        ${f.solution ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">💡 Recommendation</h4>
+            <div class="bg-indigo-900/20 border border-indigo-800 rounded-xl p-4">
+                <p class="text-gray-300">${f.solution}</p>
+            </div>
+        </div>` : ''}
+        
+        <!-- Evidence -->
+        ${evidenceHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">📋 Evidence & Data</h4>
+            <ul class="space-y-1">${evidenceHtml}</ul>
+        </div>` : ''}
+        
+        <!-- News Context -->
+        ${newsHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">📰 Related News</h4>
+            <div class="space-y-2">${newsHtml}</div>
+        </div>` : ''}
+        
+        <!-- Raw Headlines (for news agent) -->
+        ${rawHeadlinesHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">🗞️ Source Headlines</h4>
+            <div class="bg-gray-800/50 rounded-xl p-4 max-h-48 overflow-y-auto">${rawHeadlinesHtml}</div>
+        </div>` : ''}
+        
+        <!-- Affected Neighborhoods -->
+        ${neighborhoodsHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">📍 Affected Areas</h4>
+            <div class="flex flex-wrap gap-2">${neighborhoodsHtml}</div>
+        </div>` : ''}
+        
+        <!-- Officials -->
+        ${officialsHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">👤 Contact Officials</h4>
+            <div class="grid gap-3">${officialsHtml}</div>
+        </div>` : ''}
+        
+        <!-- Actions -->
+        <div class="flex gap-3 pt-4 border-t border-gray-800">
+            <button onclick="closeDetailModal(); openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" 
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-500 rounded-xl py-3 font-medium transition">
+                ✉️ Draft Email to Officials
+            </button>
+            <button onclick="copyToClipboard()" 
+                    class="bg-gray-800 hover:bg-gray-700 rounded-xl px-4 py-3 transition" title="Copy to clipboard">
+                📋
+            </button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeDetailModal() {
+    const modal = document.getElementById('detail-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    selectedFinding = null;
+}
+
+function copyToClipboard() {
+    if (!selectedFinding) return;
+    const f = selectedFinding;
+    const text = `
+${f.agent_name} - ${f.issue_title}
+Severity: ${f.severity}
+
+${f.summary}
+
+Recommendation: ${f.solution || 'N/A'}
+
+Key Metrics:
+${(f.key_metrics || []).map(m => `- ${m.label || m.metric}: ${m.value}`).join('\n')}
+    `.trim();
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard!');
+    });
 }
 
 // ── Email Modal ──
@@ -223,9 +417,21 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
     }
 });
 
-// Close modal on backdrop click
+// Close modals on backdrop click
 document.getElementById('email-modal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
+});
+
+document.getElementById('detail-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeDetailModal();
+});
+
+// Close on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeModal();
+        closeDetailModal();
+    }
 });
 
 // ── Init ──

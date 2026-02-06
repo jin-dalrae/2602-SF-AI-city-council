@@ -54,13 +54,15 @@ Analysis Task:
             text = text[4:].strip()
         return json.loads(text)
     except (json.JSONDecodeError, Exception) as e:
+        err_str = str(e)[:150]
+        is_key_issue = "leaked" in err_str.lower() or "permission" in err_str.lower() or "403" in err_str
         return {
-            "issue_title": f"{agent_name} Analysis Update",
-            "severity": "low",
-            "summary": f"Data collected but analysis encountered an issue: {str(e)[:100]}",
+            "issue_title": f"{agent_name} - Data Collected (LLM Unavailable)" if is_key_issue else f"{agent_name} Analysis Update",
+            "severity": "medium",
+            "summary": f"Data successfully fetched from SF Open Data. LLM analysis pending — {'API key needs replacement' if is_key_issue else 'will retry next cycle'}.",
             "key_metrics": [],
-            "evidence": [data_summary[:200]],
-            "solution": "Retry analysis on next cycle.",
+            "evidence": [line.strip() for line in data_summary.split("\n") if line.strip()][:8],
+            "solution": "Replace GEMINI_API_KEY in .env with a new key from https://aistudio.google.com/apikey" if is_key_issue else "Retry analysis on next cycle.",
             "affected_neighborhoods": [],
         }
 
