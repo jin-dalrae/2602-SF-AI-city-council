@@ -3,7 +3,10 @@ const findings = {};
 let lastUpdate = null;
 let selectedFinding = null;
 let currentDraft = null;
+let historicalCount = 0;
 let isRunning = true;
+let currentPage = 1;
+const itemsPerPage = 9;
 
 // ── Icons ──
 const ICONS = {
@@ -13,6 +16,7 @@ const ICONS = {
     building: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>`,
     bus: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-4 4v4m-4-4h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>`,
     link: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>`,
+    reddit: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.056 1.597.04.203.065.414.065.63 0 2.511-2.863 4.544-6.401 4.544-3.538 0-6.402-2.033-6.402-4.544 0-.216.025-.427.066-.63a1.735 1.735 0 0 1-1.057-1.597c0-.968.786-1.754 1.754-1.754.463 0 .875.18 1.179.466 1.171-.832 2.8-1.391 4.603-1.477l.805-3.79 2.748.582c.015-.007.033-.013.05-.013zM9.238 11.794c-.729 0-1.32.592-1.32 1.32 0 .728.591 1.319 1.32 1.319.728 0 1.319-.591 1.319-1.319 0-.728-.591-1.32-1.319-1.32zm5.524 0c-.729 0-1.32.592-1.32 1.32 0 .728.591 1.319 1.32 1.319.728 0 1.319-.591 1.319-1.319 0-.728-.591-1.32-1.319-1.32zm-5.455 3.002c.116 0 .21.094.21.21 0 .64 1.097 1.16 2.483 1.16 1.386 0 2.484-.52 2.484-1.16a.21.21 0 1 1 .42 0c0 .874-1.274 1.58-2.903 1.58-1.63 0-2.904-.706-2.904-1.58a.211.211 0 0 1 .21-.21z"/></svg>`,
     '📰': `<span class="text-lg">📰</span>`,
 };
 
@@ -37,7 +41,10 @@ function connectSSE() {
 
     evtSource.addEventListener('finding', (e) => {
         const data = JSON.parse(e.data);
-        findings[data.agent_name] = data;
+        // Use agent name + issue title as key to allow multiple distinct issues 
+        // to be tracked and displayed. If title is missing, fallback to agent name.
+        const key = data.issue_title ? `${data.agent_name}:${data.issue_title}` : data.agent_name;
+        findings[key] = data;
         lastUpdate = new Date();
         renderAll();
     });
@@ -60,14 +67,18 @@ async function startAgents() {
     try {
         const resp = await fetch('/api/agents/start', { method: 'POST' });
         const data = await resp.json();
-        if (data.success) {
+        // Even if success is false, if it's "Already running", we should reflect that
+        if (data.success || data.message === "Already running") {
             isRunning = true;
-            updateUIState();
+        } else {
+            alert('Failed to start agents: ' + data.message);
         }
+        updateUIState();
     } catch (err) {
         console.error('Start error:', err);
     } finally {
         btn.disabled = false;
+        syncAgentStatus();
     }
 }
 
@@ -77,14 +88,17 @@ async function stopAgents() {
     try {
         const resp = await fetch('/api/agents/stop', { method: 'POST' });
         const data = await resp.json();
-        if (data.success) {
+        if (data.success || data.message === "Not running") {
             isRunning = false;
-            updateUIState();
+        } else {
+            alert('Failed to stop agents: ' + data.message);
         }
+        updateUIState();
     } catch (err) {
         console.error('Stop error:', err);
     } finally {
         btn.disabled = false;
+        syncAgentStatus();
     }
 }
 
@@ -101,11 +115,15 @@ function updateUIState(connected = true) {
     if (isRunning) {
         statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span> Live Monitoring`;
         startBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        startBtn.disabled = true;
         stopBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+        stopBtn.disabled = false;
     } else {
         statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-500"></span> Standby`;
         stopBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        stopBtn.disabled = true;
         startBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+        startBtn.disabled = false;
     }
 }
 
@@ -115,9 +133,27 @@ async function syncAgentStatus() {
         const data = await resp.json();
         const prev = isRunning;
         isRunning = data.is_running;
+        historicalCount = data.historical_count || historicalCount;
         if (prev !== isRunning) updateUIState();
+        renderStatsBar(); // Refresh stats with new counts
     } catch (err) {
         console.error('Status sync error:', err);
+    }
+}
+
+async function loadHistory() {
+    try {
+        const resp = await fetch('/api/findings/history?limit=1000');
+        const data = await resp.json();
+        if (data.history) {
+            data.history.forEach(f => {
+                const key = f.issue_title ? `${f.agent_name}:${f.issue_title}` : f.agent_name;
+                findings[key] = f;
+            });
+            renderAll();
+        }
+    } catch (err) {
+        console.error('History load error:', err);
     }
 }
 
@@ -130,13 +166,18 @@ function renderAll() {
 
 function renderStatsBar() {
     const bar = document.getElementById('stats-bar');
-    const agentFindings = Object.values(findings).filter(f => !f.agent_name.startsWith('Collaboration:'));
+    const allFindings = Object.values(findings);
+    const agentFindings = allFindings.filter(f => !f.agent_name.startsWith('Collaboration:'));
+
+    // Count unique agents
+    const uniqueAgents = new Set(agentFindings.map(f => f.agent_name)).size;
+
     const stats = [
-        { label: 'Active Agents', value: agentFindings.length, color: 'text-indigo-400' },
+        { label: 'Active Agents', value: uniqueAgents, color: 'text-indigo-400' },
+        { label: 'Total Discoveries', value: historicalCount, color: 'text-green-400' },
+        { label: 'Active Issues', value: agentFindings.length, color: 'text-cyan-400' },
         { label: 'Urgent Issues', value: agentFindings.filter(f => f.severity === 'critical' || f.severity === 'urgent').length, color: 'text-red-400' },
-        { label: 'Moderate Issues', value: agentFindings.filter(f => f.severity === 'high' || f.severity === 'moderate' || f.severity === 'medium').length, color: 'text-orange-400' },
-        { label: 'Collaborations', value: Object.keys(findings).filter(k => k.startsWith('Collaboration:')).length, color: 'text-purple-400' },
-        { label: 'Data Points', value: agentFindings.reduce((sum, f) => sum + (f.key_metrics?.length || 0), 0), color: 'text-cyan-400' },
+        { label: 'Collaborations', value: allFindings.filter(f => f.agent_name.startsWith('Collaboration:')).length, color: 'text-purple-400' },
     ];
 
     bar.innerHTML = stats.map(s => `
@@ -154,16 +195,86 @@ function renderCards() {
 
     if (entries.length === 0) return;
 
-    // Sort: collaborations last, then by severity
+    // Sort: severity primarily, then timestamp
     const severityOrder = { critical: 0, urgent: 0, high: 1, moderate: 2, medium: 2, low: 3, improving: 4 };
     entries.sort((a, b) => {
-        const aCollab = a.agent_name.startsWith('Collaboration:') ? 1 : 0;
-        const bCollab = b.agent_name.startsWith('Collaboration:') ? 1 : 0;
-        if (aCollab !== bCollab) return aCollab - bCollab;
-        return (severityOrder[a.severity] || 3) - (severityOrder[b.severity] || 3);
+        const isCollabA = a.agent_name.startsWith('Collaboration:') ? 1 : 0;
+        const isCollabB = b.agent_name.startsWith('Collaboration:') ? 1 : 0;
+        if (isCollabA !== isCollabB) return isCollabA - isCollabB;
+
+        const sevA = severityOrder[a.severity] || 3;
+        const sevB = severityOrder[b.severity] || 3;
+        if (sevA !== sevB) return sevA - sevB;
+
+        return new Date(b.timestamp) - new Date(a.timestamp);
     });
 
-    grid.innerHTML = entries.map(f => renderCard(f)).join('');
+    // Pagination
+    const totalPages = Math.ceil(entries.length / itemsPerPage);
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const paginatedItems = entries.slice(start, end);
+
+    grid.innerHTML = paginatedItems.map(f => {
+        const key = f.issue_title ? `${f.agent_name}:${f.issue_title}` : f.agent_name;
+        return renderCard(f, key);
+    }).join('');
+
+    renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+    const container = document.getElementById('pagination-container');
+    if (!container) return;
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    // Previous button
+    html += `
+        <button onclick="changePage(${currentPage - 1})" 
+                ${currentPage === 1 ? 'disabled' : ''}
+                class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-xs font-bold transition hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">
+            PREV
+        </button>
+    `;
+
+    // Page numbers (smart range)
+    const range = 2;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - range && i <= currentPage + range)) {
+            html += `
+                <button onclick="changePage(${i})" 
+                        class="px-3 py-1.5 rounded-lg ${currentPage === i ? 'bg-indigo-600 border-indigo-500' : 'bg-gray-800 border-gray-700'} border text-xs font-bold transition hover:bg-gray-700">
+                    ${i}
+                </button>
+            `;
+        } else if (i === currentPage - range - 1 || i === currentPage + range + 1) {
+            html += `<span class="px-1 text-gray-600">...</span>`;
+        }
+    }
+
+    // Next button
+    html += `
+        <button onclick="changePage(${currentPage + 1})" 
+                ${currentPage === totalPages ? 'disabled' : ''}
+                class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-xs font-bold transition hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">
+            NEXT
+        </button>
+    `;
+
+    container.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    renderCards();
 }
 
 let brainLogs = [];
@@ -192,7 +303,7 @@ function showBrainMessage(data) {
     feed.innerHTML = html;
 }
 
-function renderCard(f) {
+function renderCard(f, key) {
     const isCollab = f.agent_name.startsWith('Collaboration:');
     const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
     const icon = ICONS[f.icon] || `<span class="text-lg">${f.icon || '📊'}</span>`;
@@ -243,7 +354,7 @@ function renderCard(f) {
 
     return `
     <div class="card-enter ${isCollab ? 'collaboration-card' : 'bg-gray-900'} border ${sev.border || 'border-gray-800'} rounded-xl overflow-hidden hover:shadow-lg hover:shadow-${sev.badge?.replace('bg-', '')}/10 transition-all duration-300 cursor-pointer group"
-         onclick="openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+         onclick="openDetailModal('${(key || f.agent_name).replace(/'/g, "\\'")}')">
         <div class="p-4">
             <!-- Header -->
             <div class="flex items-start justify-between mb-3">
@@ -251,10 +362,13 @@ function renderCard(f) {
                     <div class="w-9 h-9 ${sev.bg} ${sev.text} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">${icon}</div>
                     <div>
                         <h3 class="text-sm font-bold group-hover:text-indigo-400 transition">${f.agent_name}</h3>
-                        <p class="text-xs text-gray-500">${f.department}</p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                           <span class="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">${f.department}</span>
+                           <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
+                        </div>
                     </div>
                 </div>
-                <span class="text-xs ${sev.badge} rounded-full px-2 py-0.5 font-medium text-white uppercase animate-pulse">${f.severity}</span>
+                <span class="text-[10px] ${sev.badge} rounded-full px-2 py-0.5 font-bold text-white uppercase tracking-tighter shadow-sm">${f.severity}</span>
             </div>
 
             <!-- Traits (Hidden to reduce clutter) -->
@@ -266,6 +380,11 @@ function renderCard(f) {
 
             <!-- Summary -->
             <p class="text-xs text-gray-400 mb-3 line-clamp-2">${f.summary || ''}</p>
+
+            ${(f.status_updates && f.status_updates.length > 1) ? `
+            <div class="mt-[-8px] mb-3 text-[10px] bg-indigo-500/10 text-indigo-400 p-1.5 rounded border border-indigo-500/20 italic line-clamp-1">
+                <span class="font-bold not-italic">Update:</span> ${f.status_updates[f.status_updates.length - 1].note}
+            </div>` : ''}
 
             <!-- Metrics -->
             ${metricsHtml ? `<div class="grid grid-cols-2 gap-1.5 mb-3">${metricsHtml}</div>` : ''}
@@ -312,8 +431,8 @@ function updateTimestamp() {
 }
 
 // ── Detail Modal ──
-function openDetailModal(agentName) {
-    const f = findings[agentName];
+function openDetailModal(key) {
+    const f = findings[key];
     if (!f) return;
 
     selectedFinding = f;
@@ -366,6 +485,13 @@ function openDetailModal(agentName) {
         `<span class="text-sm bg-indigo-900/50 text-indigo-300 rounded-lg px-3 py-1">#${t}</span>`
     ).join('');
 
+    const statusUpdatesHtml = (f.status_updates || []).reverse().map(u => `
+        <div class="mb-3 pl-3 border-l-2 border-indigo-500 py-1 bg-indigo-900/10 rounded-r-lg">
+            <div class="text-[10px] text-gray-500 font-mono mb-0.5">${timeAgo(u.timestamp)}</div>
+            <div class="text-xs text-gray-300">${u.note}</div>
+        </div>
+    `).join('');
+
     document.getElementById('detail-content').innerHTML = `
         <!-- Header -->
         <div class="flex items-start justify-between mb-6">
@@ -384,6 +510,16 @@ function openDetailModal(agentName) {
             <h3 class="text-lg font-bold mb-2">${f.issue_title || 'Analysis in Progress'}</h3>
             <p class="text-gray-300">${f.summary || 'Gathering data...'}</p>
         </div>
+
+        <!-- Issue Updates (Timeline) -->
+        ${statusUpdatesHtml ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                <span>🔄 Issue Timeline</span>
+                <span class="text-[10px] bg-indigo-600 px-1.5 py-0.5 rounded-full text-white">${f.status_updates.length}</span>
+            </h4>
+            <div class="space-y-1">${statusUpdatesHtml}</div>
+        </div>` : ''}
         
         <!-- Metrics Grid -->
         ${metricsHtml ? `
@@ -493,11 +629,11 @@ function closeDetailModal() {
     selectedFinding = null;
 }
 
-function shareFinding(agentName) {
-    const f = findings[agentName];
+function shareFinding(key) {
+    const f = findings[key];
     if (!f) return;
     const url = new URL(window.location.href);
-    url.searchParams.set('agent', agentName);
+    url.searchParams.set('issue', key);
     const shareUrl = url.toString();
 
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -658,11 +794,11 @@ async function showStatsModal(label) {
 }
 
 // ── Email Modal ──
-function openEmailModal(agentName) {
-    const f = findings[agentName];
+function openEmailModal(key) {
+    const f = findings[key];
     if (!f) return;
 
-    document.getElementById('email-agent-name').value = agentName;
+    document.getElementById('email-agent-name').value = f.agent_name;
     document.getElementById('email-outcome').value = f.solution || '';
     document.getElementById('email-result').classList.add('hidden');
     document.getElementById('email-modal').classList.remove('hidden');
@@ -756,17 +892,6 @@ document.getElementById('btn-send-email')?.addEventListener('click', async (e) =
             btn.classList.add('bg-indigo-600', 'cursor-default');
             btn.disabled = true;
 
-            // Add a small log to the brain feed for the user
-            setTimeout(() => {
-                showBrainMessage({
-                    agent_name: "System",
-                    message: "Advocacy email sent successfully to city officials.",
-                    timestamp: new Date().toISOString(),
-                    icon: "✉️",
-                    thought: "Civil action loop closed."
-                });
-            }, 500);
-
             setTimeout(() => closeModal(), 3000);
         } else {
             throw new Error(result.error || 'Failed to send');
@@ -798,5 +923,6 @@ document.addEventListener('keydown', (e) => {
 // ── Init ──
 connectSSE();
 syncAgentStatus();
+loadHistory(); // Load every single card from history
 setInterval(updateTimestamp, 5000);
 setInterval(syncAgentStatus, 10000);

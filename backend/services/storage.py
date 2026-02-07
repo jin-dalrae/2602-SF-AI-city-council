@@ -38,6 +38,18 @@ def load_findings() -> dict:
         return {}
 
 
+def get_history(limit: int = 500) -> list[dict]:
+    """Retrieve the latest entries from findings history."""
+    if not HISTORY_FILE.exists():
+        return []
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            history = json.load(f)
+            return history[-limit:]
+    except (json.JSONDecodeError, IOError):
+        return []
+
+
 def append_to_history(finding: dict) -> None:
     """Append a finding to the history file for long-term storage."""
     ensure_storage()
@@ -56,8 +68,8 @@ def append_to_history(finding: dict) -> None:
     
     history.append(finding_copy)
     
-    # Keep only last 500 entries to prevent unbounded growth
-    history = history[-500:]
+    # Keep only last 5000 entries (increased from 500)
+    history = history[-5000:]
     
     with open(HISTORY_FILE, "w") as f:
         json.dump(history, f, indent=2, default=str)

@@ -8,14 +8,14 @@ class SFMTAAgent(CityAgent):
     news_query = "San Francisco Muni transit SFMTA service performance equity 2025"
     datasets = {"citations": "8pxu-u28x"}
     officials = [
-        {"name": "SFMTA Director", "title": "Director of Transportation", "email": "mtadirector@sfmta.com"},
+        {"name": "Jeffrey Tumlin", "title": "SFMTA Director of Transportation", "email": "mtadirector@sfmta.com"},
     ]
 
     async def fetch_data(self) -> dict:
         # Monthly trends
         trends = await self.socrata.fetch_trends(
             self.datasets["citations"],
-            date_field="citation_date",
+            date_field="citation_issued_datetime",
             days=180,
             period="month"
         )
@@ -23,7 +23,7 @@ class SFMTAAgent(CityAgent):
         # Recent breakdown
         recent = await self.socrata.fetch_recent(
             self.datasets["citations"],
-            date_field="citation_date",
+            date_field="citation_issued_datetime",
             days=30,
             select="violation_desc, count(*) as cnt",
             group="violation_desc",

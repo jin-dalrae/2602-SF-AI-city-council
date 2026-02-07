@@ -37,6 +37,12 @@ We've closed the loop between *discovery* and *action*.
 - **Automated Civic Tickets**: High-severity issues are automatically converted into "Civic Tickets" (GitHub Issues) for tracking.
 - **AI-Drafted Advocacy**: With a single click, NGO stakeholders can generate professional, data-backed emails to city officials, complete with citations and official contact details.
 
+### 🧬 Self-Evolving Agent Traits (Recursive Learning)
+Unlike static bots, our agents experience **behavioral evolution**. After every research cycle, an agent's "Brain Controller" evaluates its results:
+- **Capability Growth**: Agents can evolve new, hyper-specific traits. A *Safety Commissioner* may evolve into a "Retail Theft Specialist" or "Bicycle Policy Expert" depending on the trends it discovers.
+- **Episodic Memory**: Agents recall historical findings using a vector memory store, allowing them to identify when a "new" problem is actually a recurring failure.
+- **Persona Persistence**: These evolved traits are saved across sessions, meaning the Council becomes more expert and surgical the longer it monitors the city.
+
 ---
 
 ## ⚡ Tech Stack: The Engine Under the Hood

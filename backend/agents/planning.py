@@ -8,7 +8,7 @@ class PlanningAgent(CityAgent):
     news_query = "San Francisco housing development building permits zoning 2025"
     datasets = {"permits": "i98e-djp9"}
     officials = [
-        {"name": "Planning Director", "title": "SF Planning Director", "email": "planning@sfgov.org"},
+        {"name": "Rich Hillis", "title": "Planning Director", "email": "planning@sfgov.org"},
     ]
 
     async def fetch_data(self) -> dict:

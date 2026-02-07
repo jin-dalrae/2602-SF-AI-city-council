@@ -27,9 +27,14 @@ ALWAYS respond with valid JSON matching this schema:
   "key_metrics": [{"label": "metric name/period", "value": "metric value"}],
   "evidence": ["bullet point evidence items highlighting specific trends"],
   "solution": "Detailed policy recommendation based on the identified trend (2-4 sentences)",
-  "affected_neighborhoods": ["list of SF neighborhoods if applicable"]
+  "affected_neighborhoods": ["list of SF neighborhoods if applicable"],
+  "status_updates": [{"timestamp": "ISO-8601", "note": "Brief update on what changed or what was added"}]
 }
 
+IMPORTANT: If you are provided with 'CURRENT ACTIVE ISSUES', check if your new analysis is an UPDATE to one of them. 
+If it IS an update, reuse the EXACT 'issue_title' so the dashboard can append the new information.
+If it is a BRAND NEW problem, choose a new distinct 'issue_title'.
+Only include one 'status_updates' item for the current cycle if it's an update.
 Be specific with numbers and data. Focus on actionable insights for NGO advocacy."""
 
 

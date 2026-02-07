@@ -48,18 +48,33 @@ async def trigger_civic_action(agent_name: str, finding: dict) -> dict:
         
         # We wrap the synchronous Composio call in a thread
         # In 0.11.0, we use composio.tools.execute or simply composio.execute
-        result = await asyncio.to_thread(
-            lambda: composio.execute(
-                slug="GITHUB_CREATE_ISSUE",
-                arguments={
-                    "owner": "jin-dalrae", # Fallback to a demo repo or user repo
-                    "repo": "2602-SF-AI-city-council",
-                    "title": issue_title,
-                    "body": issue_body
-                },
-                user_id="default"
-            )
-        )
+        # Try multiple possible slugs as Composio versions/tools can vary
+        slugs_to_try = ["GITHUB_CREATE_ISSUE", "github_issues_create", "github_create_issue"]
+        result = None
+        last_err = None
+        
+        for slug in slugs_to_try:
+            try:
+                result = await asyncio.to_thread(
+                    lambda: composio.tools.execute(
+                        slug=slug,
+                        arguments={
+                            "owner": "jin-dalrae",
+                            "repo": "2602-SF-AI-city-council",
+                            "title": issue_title,
+                            "body": issue_body
+                        },
+                        user_id="default"
+                    )
+                )
+                if result:
+                    break
+            except Exception as e:
+                last_err = e
+                continue
+        
+        if not result and last_err:
+            raise last_err
         
         return {
             "status": "success",

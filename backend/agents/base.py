@@ -57,6 +57,13 @@ class CityAgent(ABC):
         if news:
             data_summary += "\n\nRecent News context provided to you:\n" + "\n".join(f"- {n}" for n in news)
             prompt += "\nReference the news context to reinforce your analysis."
+
+        # --- Current Issues Context ---
+        current_issues = [v for k, v in self.findings_store.items() if k.startswith(self.name) and not k.startswith("_")]
+        if current_issues:
+            issue_list = "\n".join([f"- {i.get('issue_title')} (Severity: {i.get('severity')})" for i in current_issues])
+            prompt += f"\n\nCURRENT ACTIVE ISSUES BY YOU:\n{issue_list}\nIf this new data relates to one of these, reuse the exact title to update it."
+        # ------------------------------
         
         finding = await llm.analyze_data(self.name, data_summary, prompt, traits=self.traits, memories=memories)
         
@@ -73,6 +80,19 @@ class CityAgent(ABC):
         finding["traits"] = self.traits
         return finding
 
+    async def _log_brain(self, message: str, thought: str = "", icon: str = None):
+        """Send a technical update to the status brain feed."""
+        log = {
+            "agent_name": self.name,
+            "message": message,
+            "thought": thought,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "icon": icon or self.icon
+        }
+        self.brain_log.append(log)
+        if hasattr(self, "event_queue") and self.event_queue:
+            await self.event_queue.put({"type": "brain", "data": log})
+
     async def check_collaborations(self, all_findings: dict) -> dict | None:
         """Check for cross-agent topic overlap using keywords and news context."""
         my_finding = all_findings.get(self.name)
@@ -88,9 +108,10 @@ class CityAgent(ABC):
         for n in my_finding.get("news_context", []):
             text_sources.append(n)
         full_text = " ".join(text_sources).lower()
+        STOP_WORDS = {"about", "across", "after", "again", "against", "almost", "along", "already", "also", "although", "always", "among", "another", "anyhow", "anyone", "anything", "anywhere", "around", "became", "because", "become", "becomes", "becoming", "before", "behind", "being", "below", "beside", "besides", "between", "beyond", "cannot", "could", "couldn", "didnt", "doesnt", "doing", "don't", "done", "during", "either", "else", "elsewhere", "enough", "even", "ever", "every", "everyone", "everything", "everywhere", "except", "further", "hadnt", "hasnt", "have", "havent", "hence", "here", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "himself", "howbeit", "however", "indeed", "inside", "instead", "into", "itself", "last", "latter", "least", "less", "many", "maybe", "meanwhile", "might", "more", "moreover", "most", "mostly", "much", "must", "myself", "namely", "neither", "never", "nevertheless", "next", "nobody", "none", "noone", "nothing", "nowhere", "often", "only", "onto", "other", "others", "otherwise", "ours", "ourselves", "perhaps", "please", "rather", "same", "seem", "seemed", "seeming", "seems", "several", "since", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", "such", "than", "that", "their", "them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "this", "those", "though", "through", "throughout", "thru", "thus", "together", "under", "until", "upon", "very", "wasnt", "were", "werent", "what", "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever", "whether", "which", "while", "whither", "whoever", "whole", "whom", "whose", "why", "will", "within", "without", "would", "yours", "yourself", "yourselves"}
         for word in full_text.split():
-            cleaned = word.strip(".,!?;:'\"()[]")
-            if len(cleaned) > 4:
+            cleaned = word.strip(".,!?;:'\"()[]").lower()
+            if len(cleaned) > 4 and cleaned not in STOP_WORDS:
                 my_keywords.add(cleaned)
 
         for other_name, other_finding in all_findings.items():
@@ -126,34 +147,41 @@ class CityAgent(ABC):
             # --- Active Action Loop (Composio) ---
             action_result = await actions.trigger_civic_action(self.name, finding)
             if action_result.get("status") == "success":
-                action_msg = {
-                    "agent_name": self.name,
-                    "message": f"🚀 Created Civic Ticket on GitHub for: {finding.get('issue_title')[:50]}...",
-                    "thought": "This severity warrants automated advocacy tracking.",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "icon": "🚀"
-                }
-                self.brain_log.append(action_msg)
-                await self.event_queue.put({"type": "brain", "data": action_msg})
+                await self._log_brain(
+                    f"🚀 Created Civic Ticket on GitHub for: {finding.get('issue_title')[:50]}...",
+                    "This severity warrants automated advocacy tracking.",
+                    icon="🚀"
+                )
             # ------------------------------------
 
             # --- Brain Evolution Step ---
             evolution = await llm.evolve_brain(self.name, self.traits, finding)
             if evolution.get("new_trait") and evolution["new_trait"] not in self.traits:
-                self.traits.append(evolution["new_trait"])
+                new_trait = evolution["new_trait"]
+                self.traits.append(new_trait)
                 self.findings_store[f"_traits_{self.name}"] = self.traits
-
-            learning = {
-                "agent_name": self.name,
-                "message": evolution.get("learning_message", "Analyzed latest dataset."),
-                "thought": evolution.get("evolved_thought", ""),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "icon": self.icon
-            }
-            self.brain_log.append(learning)
-            await self.event_queue.put({"type": "brain", "data": learning})
+                await self._log_brain(f"🧬 Evolved new capability: {new_trait}", evolution.get("evolved_thought", "Improving analytical depth."), icon="🧬")
             # ---------------------------
 
+            # --- Issue Merging/Updating Logic ---
+            issue_title = finding.get("issue_title", "General Update")
+            # Use agent:title as the unique key (consistent with frontend logic)
+            storage_key = f"{self.name}:{issue_title}"
+            
+            existing = self.findings_store.get(storage_key) or self.findings_store.get(self.name)
+            
+            # Initialize or merge status updates
+            updates = []
+            if existing and isinstance(existing, dict):
+                updates = existing.get("status_updates", [])
+            
+            new_update = finding.get("status_updates", [])
+            if new_update:
+                updates.extend(new_update)
+            
+            # Keep only last 5 updates to prevent bloat
+            updates = updates[-5:]
+            
             output = {
                 "agent_name": self.name,
                 "department": self.department,
@@ -163,8 +191,14 @@ class CityAgent(ABC):
                 "raw_counts": data.get("_counts", {}),
                 "traits": self.traits,
                 **finding,
+                "status_updates": updates
             }
+            
+            # Store with unique key to allow multiple issues, but reuse if title matches
+            self.findings_store[storage_key] = output
+            # Also update the base 'agent name' key for legacy compatibility
             self.findings_store[self.name] = output
+            
             await self.event_queue.put({"type": "finding", "data": output})
             storage.append_to_history(output)  # Save to history
 

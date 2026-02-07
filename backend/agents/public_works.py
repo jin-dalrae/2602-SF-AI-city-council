@@ -8,7 +8,7 @@ class PublicWorksAgent(CityAgent):
     news_query = "San Francisco 311 public works infrastructure maintenance 2025"
     datasets = {"requests": "vw6y-z8j6"}
     officials = [
-        {"name": "Director of Public Works", "title": "SF Public Works Director", "email": "dpw@sfgov.org"},
+        {"name": "Carla Short", "title": "Director of Public Works", "email": "dpw@sfgov.org"},
     ]
 
     async def fetch_data(self) -> dict:

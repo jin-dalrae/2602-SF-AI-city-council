@@ -30,6 +30,40 @@ agent_tasks: list[asyncio.Task] = []
 agent_status: dict[str, dict] = {}  # Track agent status
 
 
+class Broadcaster:
+    def __init__(self):
+        self.subscribers = set()
+
+    def subscribe(self):
+        q = asyncio.Queue()
+        self.subscribers.add(q)
+        return q
+
+    def unsubscribe(self, q):
+        self.subscribers.discard(q)
+
+    async def broadcast(self, event):
+        for q in list(self.subscribers):
+            try:
+                await q.put(event)
+            except:
+                pass
+
+
+broadcaster = Broadcaster()
+
+
+async def _listen_and_broadcast():
+    """Listen to the central event_queue and broadcast to all SSE subscribers."""
+    while True:
+        try:
+            event = await event_queue.get()
+            await broadcaster.broadcast(event)
+        except Exception as e:
+            logger.error(f"Broadcast Error: {e}")
+            await asyncio.sleep(1)
+
+
 def update_agent_status(agent_name: str, status: str, details: str = ""):
     """Update the status of an agent."""
     agent_status[agent_name] = {
@@ -138,6 +172,8 @@ async def lifespan(app: FastAPI):
     
     # Start auto-save task
     save_task = asyncio.create_task(_auto_save_loop())
+    # Start broadcaster task
+    broadcast_task = asyncio.create_task(_listen_and_broadcast())
     
     # Startup: launch agents
     await start_all_agents()
@@ -148,6 +184,7 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Shutting down server...")
     storage.save_findings(findings_store)
     save_task.cancel()
+    broadcast_task.cancel()
     await stop_all_agents()
 
 
@@ -165,25 +202,19 @@ async def serve_dashboard():
 
 
 @app.get("/favicon.ico")
-async def serve_favicon():
+async def favicon():
     return FileResponse(str(static_dir / "favicon.ico"))
-
-
-
-@app.get("/api/findings/latest")
-async def get_latest_findings():
-    # Filter out internal keys (like _news_headlines)
-    results = [v for k, v in findings_store.items() if not k.startswith("_")]
-    return JSONResponse(content=results)
 
 
 @app.get("/api/agents/status")
 async def get_agent_status():
     """Get the current status of all agents."""
+    history = storage.get_history(limit=1000)
     return JSONResponse(content={
         "agents": agent_status,
         "is_running": len(agent_tasks) > 0,
         "total_findings": len([k for k in findings_store if not k.startswith("_")]),
+        "historical_count": len(history),
         "server_time": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -199,24 +230,37 @@ async def api_stop_agents():
     success = await stop_all_agents()
     return JSONResponse(content={"success": success, "message": "Agents stopped" if success else "Not running"})
 
+
+@app.get("/api/findings/history")
+async def get_findings_history(limit: int = 5000):
+    """Retrieve all historical findings."""
+    history = storage.get_history(limit=limit)
+    return JSONResponse(content={"history": history})
+
+
 @app.get("/api/findings")
 async def stream_findings(request: Request):
-    async def event_generator():
-        # First send all current findings
-        for key, finding in findings_store.items():
-            if key.startswith("_"):
-                continue
-            yield {"event": "finding", "data": json.dumps(finding)}
+    subscriber_queue = broadcaster.subscribe()
 
-        # Then stream new updates
-        while True:
-            if await request.is_disconnected():
-                break
-            try:
-                event = await asyncio.wait_for(event_queue.get(), timeout=30.0)
-                yield {"event": "finding", "data": json.dumps(event["data"])}
-            except asyncio.TimeoutError:
-                yield {"event": "heartbeat", "data": "{}"}
+    async def event_generator():
+        try:
+            # First send all current findings
+            for key, finding in findings_store.items():
+                if key.startswith("_"):
+                    continue
+                yield {"event": "finding", "data": json.dumps(finding)}
+
+            # Then stream new updates from the subscriber-specific queue
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(subscriber_queue.get(), timeout=30.0)
+                    yield {"event": event["type"], "data": json.dumps(event["data"])}
+                except asyncio.TimeoutError:
+                    yield {"event": "heartbeat", "data": "{}"}
+        finally:
+            broadcaster.unsubscribe(subscriber_queue)
 
     return EventSourceResponse(event_generator())
 
@@ -237,6 +281,12 @@ class SendEmailRequest(BaseModel):
 @app.post("/api/email/draft")
 async def create_email_draft(req: EmailRequest):
     finding = findings_store.get(req.agent_name)
+    if not finding:
+        # Check if the agent_name matches the beginning of a key (since we use agent:title now)
+        found_key = next((k for k in findings_store if k.startswith(req.agent_name)), None)
+        if found_key:
+            finding = findings_store[found_key]
+    
     if not finding:
         return JSONResponse(
             status_code=404,

@@ -8,8 +8,8 @@ class SFPDAgent(CityAgent):
     news_query = "San Francisco crime safety public safety policy 2025"
     datasets = {"incidents": "wg3w-h783"}
     officials = [
-        {"name": "Chief of Police", "title": "SFPD Chief", "email": "sfpdchief@sfgov.org"},
-        {"name": "Police Commission", "title": "SF Police Commission", "email": "policecommission@sfgov.org"},
+        {"name": "Bill Scott", "title": "Chief of Police", "email": "sfpdchief@sfgov.org"},
+        {"name": "Cindy Elias", "title": "Police Commission President", "email": "policecommission@sfgov.org"},
     ]
 
     async def fetch_data(self) -> dict:

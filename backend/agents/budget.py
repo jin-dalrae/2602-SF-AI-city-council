@@ -8,8 +8,8 @@ class BudgetAgent(CityAgent):
     news_query = "San Francisco city budget spending fiscal policy 2025"
     datasets = {"budget": "xdgd-c79v"}
     officials = [
-        {"name": "City Controller", "title": "SF Controller", "email": "controller@sfgov.org"},
-        {"name": "Budget Director", "title": "Budget & Legislative Analyst", "email": "budget.analyst@sfgov.org"},
+        {"name": "Greg Wagner", "title": "City Controller", "email": "controller@sfgov.org"},
+        {"name": "Anna Van Degna", "title": "Director of the Office of Public Finance", "email": "budget.analyst@sfgov.org"},
     ]
 
     async def fetch_data(self) -> dict:
