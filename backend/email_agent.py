@@ -112,7 +112,7 @@ Return JSON with these fields:
             "copy_to_clipboard": True,
             "error": str(e)
         }
-        }
+
 
 
 async def send_email(recipient_email: str, subject: str, body: str) -> dict:
@@ -126,7 +126,7 @@ async def send_email(recipient_email: str, subject: str, body: str) -> dict:
         
         # Use asyncio.to_thread to run the synchronous Composio call in a separate thread
         result = await asyncio.to_thread(
-            lambda: composio.execute(
+            lambda: composio.tools.execute(
                 slug="GMAIL_SEND_EMAIL",
                 arguments={
                     "recipient_email": recipient_email,
