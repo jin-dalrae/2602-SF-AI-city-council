@@ -1,6 +1,7 @@
 import os
 import asyncio
-from composio_langchain import ComposioToolSet, App, Action
+from composio import Composio
+from composio_langchain import LangchainProvider
 from backend.services import llm
 
 async def trigger_civic_action(agent_name: str, finding: dict) -> dict:
@@ -17,9 +18,9 @@ async def trigger_civic_action(agent_name: str, finding: dict) -> dict:
         return {"status": "error", "message": "COMPOSIO_API_KEY not found."}
 
     try:
-        # For the hackathon, we'll demonstrate a GitHub issue creation as a 'Civic Ticket'
-        # In a real scenario, this would go to a city-managed repo.
-        toolset = ComposioToolSet(api_key=api_key)
+        # Initialize Composio with LangchainProvider for version 0.11.0+
+        # This replaces the old ComposioToolSet approach.
+        composio = Composio(api_key=api_key, provider=LangchainProvider())
         
         issue_title = f"[CIVIC-ISSUE] {finding.get('issue_title', 'Alert from ' + agent_name)}"
         issue_body = f"""
@@ -37,11 +38,7 @@ async def trigger_civic_action(agent_name: str, finding: dict) -> dict:
 *Reported automatically by AI City Council Dashboard*
 """
 
-        # We'll use the 'GITHUB_CREATE_ISSUE' action
-        # Note: This assumes the user has connected GitHub to Composio.
-        # If not, it will return an error, which we handle.
-        
-        # For demonstration purposes, we'll also log this to the agent's brain
+        # For demonstration purposes, we'll log this to the agent's brain
         action_log = {
             "status": "triggered",
             "tool": "GitHub",
@@ -50,15 +47,17 @@ async def trigger_civic_action(agent_name: str, finding: dict) -> dict:
         }
         
         # We wrap the synchronous Composio call in a thread
+        # In 0.11.0, we use composio.tools.execute or simply composio.execute
         result = await asyncio.to_thread(
-            lambda: toolset.execute_action(
-                action=Action.GITHUB_CREATE_ISSUE,
-                params={
+            lambda: composio.execute(
+                slug="GITHUB_CREATE_ISSUE",
+                arguments={
                     "owner": "jin-dalrae", # Fallback to a demo repo or user repo
                     "repo": "2602-SF-AI-city-council",
                     "title": issue_title,
                     "body": issue_body
-                }
+                },
+                user_id="default"
             )
         )
         
@@ -74,3 +73,4 @@ async def trigger_civic_action(agent_name: str, finding: dict) -> dict:
             "error": str(e),
             "action_log": {"status": "failed", "error": str(e)}
         }
+
