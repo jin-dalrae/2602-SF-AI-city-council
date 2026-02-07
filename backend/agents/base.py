@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from backend.services.socrata import SocrataClient
@@ -161,6 +162,24 @@ class CityAgent(ABC):
                 self.traits.append(new_trait)
                 self.findings_store[f"_traits_{self.name}"] = self.traits
                 await self._log_brain(f"🧬 Evolved new capability: {new_trait}", evolution.get("evolved_thought", "Improving analytical depth."), icon="🧬")
+            
+            # --- Recursive Code Evolution ---
+            if evolution.get("code_update"):
+                update = evolution["code_update"]
+                method_name = update.get("method_name")
+                new_code = update.get("new_code")
+                if method_name and new_code:
+                    # Resolve own file path
+                    module = sys.modules[self.__class__.__module__]
+                    file_path = getattr(module, "__file__", None)
+                    if file_path:
+                        success = storage.apply_code_update(file_path, method_name, new_code)
+                        if success:
+                            await self._log_brain(
+                                f"⚙️ Updated source code: Method `{method_name}`",
+                                f"Rationale: {evolution.get('rationale', 'Optimization')}",
+                                icon="⚙️"
+                            )
             # ---------------------------
 
             # --- Issue Merging/Updating Logic ---

@@ -8,6 +8,12 @@ let isRunning = true;
 let currentPage = 1;
 const itemsPerPage = 9;
 
+// Helper to escape strings for HTML attributes
+const esc = (str) => {
+    if (!str) return '';
+    return str.toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
+};
+
 // ── Icons ──
 const ICONS = {
     shield: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>`,
@@ -17,6 +23,8 @@ const ICONS = {
     bus: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-4 4v4m-4-4h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>`,
     link: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>`,
     reddit: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.056 1.597.04.203.065.414.065.63 0 2.511-2.863 4.544-6.401 4.544-3.538 0-6.402-2.033-6.402-4.544 0-.216.025-.427.066-.63a1.735 1.735 0 0 1-1.057-1.597c0-.968.786-1.754 1.754-1.754.463 0 .875.18 1.179.466 1.171-.832 2.8-1.391 4.603-1.477l.805-3.79 2.748.582c.015-.007.033-.013.05-.013zM9.238 11.794c-.729 0-1.32.592-1.32 1.32 0 .728.591 1.319 1.32 1.319.728 0 1.319-.591 1.319-1.319 0-.728-.591-1.32-1.319-1.32zm5.524 0c-.729 0-1.32.592-1.32 1.32 0 .728.591 1.319 1.32 1.319.728 0 1.319-.591 1.319-1.319 0-.728-.591-1.32-1.319-1.32zm-5.455 3.002c.116 0 .21.094.21.21 0 .64 1.097 1.16 2.483 1.16 1.386 0 2.484-.52 2.484-1.16a.21.21 0 1 1 .42 0c0 .874-1.274 1.58-2.903 1.58-1.63 0-2.904-.706-2.904-1.58a.211.211 0 0 1 .21-.21z"/></svg>`,
+    'x-logo': `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>`,
+    briefcase: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`,
     '📰': `<span class="text-lg">📰</span>`,
 };
 
@@ -354,7 +362,7 @@ function renderCard(f, key) {
 
     return `
     <div class="card-enter ${isCollab ? 'collaboration-card' : 'bg-gray-900'} border ${sev.border || 'border-gray-800'} rounded-xl overflow-hidden hover:shadow-lg hover:shadow-${sev.badge?.replace('bg-', '')}/10 transition-all duration-300 cursor-pointer group"
-         onclick="openDetailModal('${(key || f.agent_name).replace(/'/g, "\\'")}')">
+         onclick="openDetailModal('${esc(key)}')">
         <div class="p-4">
             <!-- Header -->
             <div class="flex items-start justify-between mb-3">
@@ -402,13 +410,13 @@ function renderCard(f, key) {
             <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-800">
                 <span class="text-xs text-gray-600">${timeAgo(f.timestamp)}</span>
                 <div class="flex gap-2">
-                    <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); shareFinding('${f.agent_name.replace(/'/g, "\\'")}')">
+                    <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); shareFinding('${esc(key)}')">
                         Share Finding
                     </button>
-                    <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+                    <button class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded px-3 py-1.5 transition" onclick="event.stopPropagation(); openDetailModal('${esc(key)}')">
                         View Details
                     </button>
-                    ${!isCollab ? `<button onclick="event.stopPropagation(); openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-1.5 transition font-medium">Share Report</button>` : ''}
+                    ${!isCollab ? `<button onclick="event.stopPropagation(); openEmailModal('${esc(key)}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-1.5 transition font-medium">Share Report</button>` : ''}
                 </div>
             </div>
         </div>
@@ -432,8 +440,12 @@ function updateTimestamp() {
 
 // ── Detail Modal ──
 function openDetailModal(key) {
+    console.log('Opening Modal for:', key);
     const f = findings[key];
-    if (!f) return;
+    if (!f) {
+        console.warn('Finding not found for key:', key);
+        return;
+    }
 
     selectedFinding = f;
     const modal = document.getElementById('detail-modal');
@@ -605,7 +617,7 @@ function openDetailModal(key) {
         
         <!-- Actions -->
         <div class="flex gap-3 pt-4 border-t border-gray-800">
-            <button onclick="closeDetailModal(); openEmailModal('${f.agent_name.replace(/'/g, "\\'")}')" 
+            <button onclick="closeDetailModal(); openEmailModal('${esc(key)}')" 
                     class="flex-1 bg-indigo-600 hover:bg-indigo-500 rounded-xl py-3 font-medium transition">
                 ✉️ Draft Email to Officials
             </button>
@@ -798,7 +810,8 @@ function openEmailModal(key) {
     const f = findings[key];
     if (!f) return;
 
-    document.getElementById('email-agent-name').value = f.agent_name;
+    // Use the unique key for the draft request, fallback to agent_name
+    document.getElementById('email-agent-name').value = key || f.agent_name;
     document.getElementById('email-outcome').value = f.solution || '';
     document.getElementById('email-result').classList.add('hidden');
     document.getElementById('email-modal').classList.remove('hidden');

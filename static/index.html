@@ -113,6 +113,10 @@
                         STOP
                     </button>
                 </div>
+                <button onclick="loadHistory()" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"
+                    title="Refresh Historical Data">
+                    🔄
+                </button>
                 <div id="connection-status" class="flex items-center gap-2 text-sm text-gray-400">
                     <span class="w-2 h-2 rounded-full bg-yellow-500 pulse-dot"></span>
                     Connecting...
@@ -222,22 +226,6 @@
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCrzpMehigE5ez-wl2_gwhVH629cr2hKsc",
-            authDomain: "aicityhackathon.firebaseapp.com",
-            projectId: "aicityhackathon",
-            storageBucket: "aicityhackathon.firebasestorage.app",
-            messagingSenderId: "1004568862733",
-            appId: "1:1004568862733:web:8400703a7018d92ca9f544",
-            measurementId: "G-9VQ3S2D2P8"
-        };
-        firebase.initializeApp(firebaseConfig);
-        firebase.analytics();
-    </script>
     <script src="/static/app.js"></script>
 </body>
 

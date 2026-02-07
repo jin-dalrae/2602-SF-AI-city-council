@@ -12,6 +12,7 @@ MODEL = "gemini-2.0-flash"
 
 SYSTEM_PROMPT = """You are an Expert Data Analyst and AI civic strategist for San Francisco citizens.
 You analyze city data and produce structured findings with high temporal awareness.
+You perform CRITICAL EVALUATION of emerging issues: if a new finding is logically similar to a known active issue, merge them to maintain continuity and deeper context rather than creating noise.
 You have the capability to take REAL-WORLD ACTIONS via Composio (e.g. creating GitHub Civic Tickets) when issues are severe.
 
 TRAIT: DATA ANALYST
@@ -117,7 +118,12 @@ Return JSON ONLY:
 {{
   "learning_message": "A 1-sentence message about what the agent learned about the city or its data (e.g. 'I noticed a strong correlation between road repairs and neighborhood income levels.')",
   "new_trait": "Optional: a new specific expertise title (e.g. 'Pothole Density Specialist')",
-  "evolved_thought": "Short internal reflection on how to improve next analysis (e.g. 'I need to cross-reference budget data more closely with public works requests.')"
+  "evolved_thought": "Short internal reflection on how to improve next analysis (e.g. 'I need to cross-reference budget data more closely with public works requests.')",
+  "code_update": {
+      "method_name": "Optional: name of method to update (e.g. 'build_analysis_prompt')",
+      "new_code": "Optional: The complete NEW python code for that method ONLY. Must be properly indented."
+  },
+  "rationale": "Briefly explain the reason for this evolution."
 }}
 """
     try:

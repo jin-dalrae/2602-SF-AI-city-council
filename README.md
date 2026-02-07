@@ -19,8 +19,21 @@ We’ve built a living "Digital Brain" for the city. AI City Council doesn't jus
 
 ### 🧠 The Intelligence Layer
 - **Marathon Mode**: Agents run in continuous 60-second loops, processing thousands of data points in real-time.
-- **Consensus-Driven Analysis**: Distributed agents (Transit, Police, Budget, Public Works) collaborate to identify high-impact issues that require multi-departmental coordination.
-- **Actionable Insights**: Unlike traditional dashboards, our agents propose **specific policy solutions** backed by verified evidence citations.
+- **Recursive Evolution**: Our agents perform **Self-Directed Code Evolution**. If an agent identifies a superior analytical pattern or prompt strategy, it triggers a recursive update to its own `.py` source code, physically overwriting its logic to become more efficient.
+- **Consensus-Driven Analysis**: Distributed agents collaborate to identify high-impact issues requiring multi-departmental coordination.
+- **Intelligent Issue Merging**: Instead of duplicate alerts, agents update existing "Master Cards" and append new evidence to a shared issue timeline.
+
+## 🏛️ The Council Members (The Agents)
+
+1.  **Safety Commissioner (`SFPDAgent`)**: Monitors SFPD incident data and crime trends to identify public safety hot-spots.
+2.  **Transit Authority (`SFMTAAgent`)**: Analyzes Muni/BART performance, delays, and transit equity across neighborhoods.
+3.  **Infrastructure & Streets (`PublicWorksAgent`)**: Tracks 311 requests, street repairs, and pothole density.
+4.  **Fiscal Oversight (`BudgetAgent`)**: Audits city spending, revenue spikes, and identifies funding reallocation opportunities.
+5.  **Urban Development (`PlanningAgent`)**: Monitors building permits, housing projects, and zoning changes.
+6.  **Civic Correspondent (`SFNewsAgent`)**: Aggregates real-time news from You.com to provide situational context to all other agents.
+7.  **Community Watch (`RedditAgent`)**: Scans `r/sanfrancisco` for "ground-truth" community complaints and emerging local incidents.
+8.  **SF Tech Scouter (`XAgent`)**: Tracks the tech & AI ecosystem on X (Twitter), monitoring startup trends and industry sentiment.
+9.  **Policy Coordinator (`PolicyCoordinator`)**: The Meta-Agent that merges similar issues from across the council into unified, systemic "City Briefings."
 
 ---
 
@@ -37,11 +50,16 @@ We've closed the loop between *discovery* and *action*.
 - **Automated Civic Tickets**: High-severity issues are automatically converted into "Civic Tickets" (GitHub Issues) for tracking.
 - **AI-Drafted Advocacy**: With a single click, NGO stakeholders can generate professional, data-backed emails to city officials, complete with citations and official contact details.
 
-### 🧬 Self-Evolving Agent Traits (Recursive Learning)
-Unlike static bots, our agents experience **behavioral evolution**. After every research cycle, an agent's "Brain Controller" evaluates its results:
-- **Capability Growth**: Agents can evolve new, hyper-specific traits. A *Safety Commissioner* may evolve into a "Retail Theft Specialist" or "Bicycle Policy Expert" depending on the trends it discovers.
-- **Episodic Memory**: Agents recall historical findings using a vector memory store, allowing them to identify when a "new" problem is actually a recurring failure.
-- **Persona Persistence**: These evolved traits are saved across sessions, meaning the Council becomes more expert and surgical the longer it monitors the city.
+### 🔄 Intelligent Merging & Living Timelines
+The dashboard avoids "Update Fatigue" by grouping similar discoveries:
+- **Master Issue Continuity**: When new data confirms an existing problem, agents "append" to the former theme rather than creating a new card.
+- **Living Timelines**: Every card features a **🔄 Issue Timeline**, showing every refinement, severity shift, and new evidence added by the Council over time.
+
+### 🧬 Self-Evolving Intelligence (Recursive Learning)
+Unlike static bots, our agents experience **behavioral and structural evolution**:
+- **Capability Growth**: Agents evolve new, hyper-specific traits (e.g. *Safety Commissioner* → *Bicycle Policy Expert*).
+- **Self-Modifying Source**: When an agent "learns" a better way to think, it modifies its own Python class methods (`.py`) in real-time, which is then reflected in the **Agent Brain Feed**.
+- **Episodic Memory**: Agents use a vector store to recall past findings, ensuring that "new" reports are contextualized against years of historical performance.
 
 ---
 

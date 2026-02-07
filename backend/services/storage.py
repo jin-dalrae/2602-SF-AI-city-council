@@ -38,16 +38,6 @@ def load_findings() -> dict:
         return {}
 
 
-def get_history(limit: int = 500) -> list[dict]:
-    """Retrieve the latest entries from findings history."""
-    if not HISTORY_FILE.exists():
-        return []
-    try:
-        with open(HISTORY_FILE, "r") as f:
-            history = json.load(f)
-            return history[-limit:]
-    except (json.JSONDecodeError, IOError):
-        return []
 
 
 def append_to_history(finding: dict) -> None:
@@ -152,3 +142,72 @@ def get_history(agent_name: str = None, limit: int = 50) -> list:
         history = [h for h in history if h.get("agent_name") == agent_name]
     
     return history[-limit:]
+
+
+def apply_code_update(file_path: str, method_name: str, new_code: str) -> bool:
+    """
+    Dynamically update an agent's source code. 
+    Searches for the method and replaces its content.
+    """
+    if not os.path.exists(file_path):
+        return False
+    
+    try:
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+        
+        start_line = -1
+        end_line = -1
+        indent = ""
+        
+        # Find the method start
+        for i, line in enumerate(lines):
+            if f"def {method_name}(" in line:
+                start_line = i
+                # Detect indentation of the next line (the body)
+                if i + 1 < len(lines):
+                    next_line = lines[i+1]
+                    indent = next_line[:len(next_line) - len(next_line.lstrip())]
+                break
+        
+        if start_line == -1:
+            return False
+            
+        # Find the method end (next line with same or less indentation, excluding empty lines)
+        method_indent = lines[start_line][:len(lines[start_line]) - len(lines[start_line].lstrip())]
+        for i in range(start_line + 1, len(lines)):
+            line = lines[i]
+            if line.strip() == "": continue
+            line_indent = line[:len(line) - len(line.lstrip())]
+            if len(line_indent) <= len(method_indent):
+                end_line = i
+                break
+        
+        if end_line == -1:
+            end_line = len(lines)
+            
+        # Format the new code with correct indentation
+        formatted_code = []
+        for line in new_code.strip().split("\n"):
+            # Ensure the def line isn't part of new_code, or handle it
+            if line.strip().startswith(f"def {method_name}"):
+                formatted_code.append(line + "\n")
+            else:
+                formatted_code.append(indent + line.lstrip() + "\n")
+
+        # Replace the lines
+        if "def" in formatted_code[0]:
+            new_lines = lines[:start_line] + formatted_code
+        else:
+            new_lines = lines[:start_line + 1] + formatted_code
+            
+        new_lines = new_lines + lines[end_line:]
+        
+        temp_path = f"{file_path}.tmp"
+        with open(temp_path, "w") as f:
+            f.writelines(new_lines)
+        os.replace(temp_path, file_path)
+        return True
+    except Exception as e:
+        print(f"Failed to apply code update: {e}")
+        return False
