@@ -2,7 +2,7 @@ from .base import CityAgent
 
 
 class BudgetAgent(CityAgent):
-    name = "City Budget Analysis"
+    name = "City Comptroller"
     department = "Office of the Controller"
     icon = "dollar-sign"
     news_query = "San Francisco city budget spending fiscal policy 2025"

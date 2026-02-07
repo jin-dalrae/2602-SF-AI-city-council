@@ -2,7 +2,7 @@ from .base import CityAgent
 
 
 class PlanningAgent(CityAgent):
-    name = "Building Permits"
+    name = "Planning Commissioner"
     department = "Planning Department"
     icon = "building"
     news_query = "San Francisco housing development building permits zoning 2025"

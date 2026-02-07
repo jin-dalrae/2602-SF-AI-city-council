@@ -569,7 +569,7 @@ async function showStatsModal(label) {
     } else if (label === 'Urgent Issues' || label === 'Moderate Issues') {
         const isUrgent = label === 'Urgent Issues';
         const filtered = Object.values(findings).filter(f => {
-            if (f.agent_name.startsWith('Collaboration:') || f.agent_name === 'SF News Agent') return false;
+            if (f.agent_name.startsWith('Collaboration:') || f.department === 'News & Media') return false;
             return isUrgent ? (f.severity === 'critical' || f.severity === 'urgent') :
                 (f.severity === 'high' || f.severity === 'moderate' || f.severity === 'medium');
         });
@@ -623,7 +623,7 @@ async function showStatsModal(label) {
             </div>
         `;
     } else if (label === 'Data Points') {
-        const agentFindings = Object.values(findings).filter(f => !f.agent_name.startsWith('Collaboration:') && f.agent_name !== 'SF News Agent');
+        const agentFindings = Object.values(findings).filter(f => !f.agent_name.startsWith('Collaboration:') && f.department !== 'News & Media');
         html = `
             <div class="mb-6">
                 <h2 class="text-xl font-bold flex items-center gap-2">

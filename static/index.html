@@ -215,6 +215,22 @@
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrzpMehigE5ez-wl2_gwhVH629cr2hKsc",
+            authDomain: "aicityhackathon.firebaseapp.com",
+            projectId: "aicityhackathon",
+            storageBucket: "aicityhackathon.firebasestorage.app",
+            messagingSenderId: "1004568862733",
+            appId: "1:1004568862733:web:8400703a7018d92ca9f544",
+            measurementId: "G-9VQ3S2D2P8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        firebase.analytics();
+    </script>
     <script src="/static/app.js"></script>
 </body>
 

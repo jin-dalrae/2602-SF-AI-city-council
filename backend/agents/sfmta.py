@@ -2,7 +2,7 @@ from .base import CityAgent
 
 
 class SFMTAAgent(CityAgent):
-    name = "SFMTA Transit"
+    name = "Transit Authority"
     department = "Municipal Transportation Agency"
     icon = "bus"
     news_query = "San Francisco Muni transit SFMTA service performance equity 2025"

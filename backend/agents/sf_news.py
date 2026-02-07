@@ -18,7 +18,7 @@ class SFNewsAgent:
     It provides a news feed that other agents reference for context.
     """
 
-    name = "SF News Agent"
+    name = "Civic Correspondent"
     department = "News & Media"
     icon = "📰"
     

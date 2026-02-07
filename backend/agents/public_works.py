@@ -2,7 +2,7 @@ from .base import CityAgent
 
 
 class PublicWorksAgent(CityAgent):
-    name = "311 Service Requests"
+    name = "Infrastructure Foreman"
     department = "Public Works"
     icon = "wrench"
     news_query = "San Francisco 311 public works infrastructure maintenance 2025"

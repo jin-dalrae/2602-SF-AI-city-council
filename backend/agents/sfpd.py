@@ -2,7 +2,7 @@ from .base import CityAgent
 
 
 class SFPDAgent(CityAgent):
-    name = "SFPD Crime Analysis"
+    name = "Safety Commissioner"
     department = "Police Department"
     icon = "shield"
     news_query = "San Francisco crime safety public safety policy 2025"

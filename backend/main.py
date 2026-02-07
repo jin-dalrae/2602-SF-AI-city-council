@@ -61,7 +61,7 @@ async def _launch_agent(AgentClass, delay: int):
 
 async def _launch_news_agent():
     """Launch the SF News Agent with no delay (runs first to provide context)."""
-    agent_name = "SF News Agent"
+    agent_name = NEWS_AGENT.name
     update_agent_status(agent_name, "🟢 RUNNING", "News agent started first")
     
     agent = NEWS_AGENT(findings_store, event_queue)
