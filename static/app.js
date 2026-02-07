@@ -2,6 +2,7 @@
 const findings = {};
 let lastUpdate = null;
 let selectedFinding = null;
+let currentDraft = null;
 let isRunning = true;
 
 // ── Icons ──
@@ -208,17 +209,8 @@ function renderCard(f) {
         </div>`
     ).join('');
 
-    const officialsHtml = (f.officials || []).length > 0
-        ? `<div class="mt-2">
-            <p class="text-xs font-medium text-gray-400 mb-1">Contact Officials:</p>
-            ${f.officials.slice(0, 2).map(o => `
-                <div class="text-xs text-gray-500 mb-1">
-                    <span class="text-indigo-400">${o.name}</span> - ${o.title}
-                    ${o.email ? `<br><a href="mailto:${o.email}" class="text-blue-400 hover:underline">${o.email}</a>` : ''}
-                </div>
-            `).join('')}
-           </div>`
-        : '';
+    const officialsHtml = ''; // Hiding officials from main card to reduce clutter
+
 
     const evidenceHtml = (f.evidence || []).slice(0, 3).map(e =>
         `<li class="text-xs text-gray-400">${typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e)}</li>`
@@ -260,8 +252,9 @@ function renderCard(f) {
                 <span class="text-xs ${sev.badge} rounded-full px-2 py-0.5 font-medium text-white uppercase animate-pulse">${f.severity}</span>
             </div>
 
-            <!-- Traits -->
-            ${traitsHtml ? `<div class="flex flex-wrap gap-1 mb-3">${traitsHtml}</div>` : ''}
+            <!-- Traits (Hidden to reduce clutter) -->
+            <!-- ${traitsHtml ? `<div class="flex flex-wrap gap-1 mb-3">${traitsHtml}</div>` : ''} -->
+
 
             <!-- Issue Title -->
             <h4 class="font-semibold text-sm mb-2 group-hover:text-white transition">${f.issue_title || 'Analyzing...'}</h4>
@@ -696,14 +689,64 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
         });
         const result = await resp.json();
         const data = result.email_draft;
+        currentDraft = data; // Store for sending
+
         document.getElementById('email-result-to').textContent = `To: ${(data.to || []).join(', ')}`;
         document.getElementById('email-result-subject').textContent = `Subject: ${data.subject}`;
         document.getElementById('email-result-body').textContent = data.body;
         document.getElementById('email-result').classList.remove('hidden');
+
+        // Reset send button state
+        const sendBtn = document.getElementById('btn-send-email');
+        if (sendBtn) {
+            sendBtn.textContent = '🚀 Send Email via Composio';
+            sendBtn.disabled = false;
+            sendBtn.classList.remove('bg-gray-600', 'cursor-not-allowed');
+            sendBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+        }
     } catch (err) {
         alert('Error generating email: ' + err.message);
     } finally {
         btn.textContent = 'Generate Email Draft';
+        btn.disabled = false;
+    }
+});
+
+// Handle sending the email
+document.getElementById('btn-send-email')?.addEventListener('click', async (e) => {
+    if (!currentDraft) return;
+
+    const btn = e.target.closest('button');
+    const originalText = btn.textContent;
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+
+    try {
+        const recipients = (currentDraft.to || []).concat(currentDraft.cc || []).join(', ');
+
+        const resp = await fetch('/api/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipient_email: recipients,
+                subject: currentDraft.subject,
+                body: currentDraft.body
+            }),
+        });
+
+        const result = await resp.json();
+
+        if (result.success) {
+            btn.textContent = '✅ Email Sent Successfully!';
+            btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+            btn.classList.add('bg-gray-600', 'cursor-not-allowed');
+            setTimeout(() => closeModal(), 2000);
+        } else {
+            throw new Error(result.error || 'Failed to send');
+        }
+    } catch (err) {
+        alert('Error sending email: ' + err.message);
+        btn.textContent = originalText;
         btn.disabled = false;
     }
 });

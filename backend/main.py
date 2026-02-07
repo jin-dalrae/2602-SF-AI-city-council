@@ -228,6 +228,12 @@ class EmailRequest(BaseModel):
     include_admin: bool = True
 
 
+class SendEmailRequest(BaseModel):
+    recipient_email: str
+    subject: str
+    body: str
+
+
 @app.post("/api/email/draft")
 async def create_email_draft(req: EmailRequest):
     finding = findings_store.get(req.agent_name)
@@ -243,3 +249,13 @@ async def create_email_draft(req: EmailRequest):
         include_admin=req.include_admin,
     )
     return JSONResponse(content=result)
+
+
+@app.post("/api/email/send")
+async def api_send_email(req: SendEmailRequest):
+    from backend.email_agent import send_email
+    result = await send_email(req.recipient_email, req.subject, req.body)
+    if result.get("success"):
+        return JSONResponse(content=result)
+    else:
+        return JSONResponse(status_code=500, content=result)

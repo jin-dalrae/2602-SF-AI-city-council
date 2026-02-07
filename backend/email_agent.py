@@ -1,6 +1,10 @@
 import os
 import json
 from dotenv import load_dotenv
+
+from composio import Composio
+from composio_langchain import LangchainProvider
+import asyncio
 from backend.services import llm
 
 load_dotenv()
@@ -108,3 +112,30 @@ Return JSON with these fields:
             "copy_to_clipboard": True,
             "error": str(e)
         }
+        }
+
+
+async def send_email(recipient_email: str, subject: str, body: str) -> dict:
+    """Send an email using Composio's Gmail integration."""
+    api_key = os.getenv("COMPOSIO_API_KEY") or COMPOSIO_API_KEY
+    if not api_key:
+        return {"success": False, "error": "COMPOSIO_API_KEY not found."}
+
+    try:
+        composio = Composio(api_key=api_key, provider=LangchainProvider())
+        
+        # Use asyncio.to_thread to run the synchronous Composio call in a separate thread
+        result = await asyncio.to_thread(
+            lambda: composio.execute(
+                slug="GMAIL_SEND_EMAIL",
+                arguments={
+                    "recipient_email": recipient_email,
+                    "subject": subject,
+                    "body": body
+                },
+                user_id="default"
+            )
+        )
+        return {"success": True, "result": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
