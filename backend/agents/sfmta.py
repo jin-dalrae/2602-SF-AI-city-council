@@ -5,7 +5,7 @@ class SFMTAAgent(CityAgent):
     name = "Transit Authority"
     department = "Municipal Transportation Agency"
     icon = "bus"
-    news_query = "San Francisco Muni transit SFMTA service performance equity 2025"
+    news_query = "San Francisco Muni transit SFMTA service performance equity 2026"
     datasets = {"citations": "8pxu-u28x"}
     officials = [
         {"name": "Jeffrey Tumlin", "title": "SFMTA Director of Transportation", "email": "mtadirector@sfmta.com"},

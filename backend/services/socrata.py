@@ -1,5 +1,5 @@
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class SocrataClient:
@@ -68,7 +68,7 @@ class SocrataClient:
         days: int = 90,
         **kwargs,
     ) -> list[dict]:
-        cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00")
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00")
         where = f"{date_field} > '{cutoff}'"
         if kwargs.get("where"):
             where = f"{where} AND ({kwargs.pop('where')})"

@@ -5,7 +5,7 @@ class BudgetAgent(CityAgent):
     name = "City Comptroller"
     department = "Office of the Controller"
     icon = "dollar-sign"
-    news_query = "San Francisco city budget spending fiscal policy 2025"
+    news_query = "San Francisco city budget spending fiscal policy 2026"
     datasets = {"budget": "xdgd-c79v"}
     officials = [
         {"name": "Greg Wagner", "title": "City Controller", "email": "controller@sfgov.org"},

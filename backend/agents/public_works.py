@@ -5,7 +5,7 @@ class PublicWorksAgent(CityAgent):
     name = "Infrastructure Foreman"
     department = "Public Works"
     icon = "wrench"
-    news_query = "San Francisco 311 public works infrastructure maintenance 2025"
+    news_query = "San Francisco 311 public works infrastructure maintenance 2026"
     datasets = {"requests": "vw6y-z8j6"}
     officials = [
         {"name": "Carla Short", "title": "Director of Public Works", "email": "dpw@sfgov.org"},

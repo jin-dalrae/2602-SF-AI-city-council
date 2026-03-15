@@ -61,8 +61,20 @@ class RedditAgent(CityAgent):
                     continue
             
             if not result:
-                # Fallback to news-based sentiment if Reddit tool fails
-                await self._log_brain("⚠️ Reddit tool connection issue.", "Falling back to secondary sentiment signals.")
+                # Fallback to You.com search if Reddit tool fails
+                await self._log_brain("⚠️ Reddit tool connection issue.", "Falling back to You.com real-time site search.")
+                search_query = "site:reddit.com/r/sanfrancisco latest community issues 2026"
+                from backend.services import you_api
+                fallback_news = await you_api.search_context(search_query)
+                if fallback_news and not fallback_news.startswith("Search error"):
+                    # Treat search results as pseudo-posts
+                    lines = [l for l in fallback_news.split("\n") if l.strip()]
+                    formatted_posts = [{"title": "Community Signal", "text": line, "score": 5, "comments": 2} for line in lines[:5]]
+                    return {
+                        "posts": formatted_posts,
+                        "post_count": len(formatted_posts),
+                        "_counts": {"community_reports": len(formatted_posts)}
+                    }
                 return {"posts": [], "_counts": {"reddit_reports": 0}}
             
             # Extract posts from result

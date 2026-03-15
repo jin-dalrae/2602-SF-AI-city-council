@@ -5,7 +5,7 @@ class SFPDAgent(CityAgent):
     name = "Safety Commissioner"
     department = "Police Department"
     icon = "shield"
-    news_query = "San Francisco crime safety public safety policy 2025"
+    news_query = "San Francisco crime safety public safety policy 2026"
     datasets = {"incidents": "wg3w-h783"}
     officials = [
         {"name": "Bill Scott", "title": "Chief of Police", "email": "sfpdchief@sfgov.org"},

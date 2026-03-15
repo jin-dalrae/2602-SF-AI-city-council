@@ -63,7 +63,18 @@ class XAgent(CityAgent):
                     continue
             
             if not result:
-                await self._log_brain("⚠️ X tool connection issue.", "Falling back to news-based tech sentiment.")
+                await self._log_brain("⚠️ X tool connection issue.", "Falling back to You.com real-time site search.")
+                search_query = "site:x.com San Francisco tech scene trends 2026"
+                from backend.services import you_api
+                fallback_news = await you_api.search_context(search_query)
+                if fallback_news and not fallback_news.startswith("Search error"):
+                    lines = [l for l in fallback_news.split("\n") if l.strip()]
+                    formatted_tweets = [{"text": line, "user": "X-Signal", "engagement": 10} for line in lines[:5]]
+                    return {
+                        "tweets": formatted_tweets,
+                        "tech_signal_count": len(formatted_tweets),
+                        "_counts": {"tech_ecosystem_signals": len(formatted_tweets)}
+                    }
                 return {"tweets": [], "_counts": {"tech_signals": 0}}
             
             # Extract tweets from result

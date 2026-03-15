@@ -5,7 +5,7 @@ class PlanningAgent(CityAgent):
     name = "Planning Commissioner"
     department = "Planning Department"
     icon = "building"
-    news_query = "San Francisco housing development building permits zoning 2025"
+    news_query = "San Francisco housing development building permits zoning 2026"
     datasets = {"permits": "i98e-djp9"}
     officials = [
         {"name": "Rich Hillis", "title": "Planning Director", "email": "planning@sfgov.org"},

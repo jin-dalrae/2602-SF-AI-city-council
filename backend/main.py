@@ -46,7 +46,7 @@ class Broadcaster:
         for q in list(self.subscribers):
             try:
                 await q.put(event)
-            except:
+            except Exception:
                 pass
 
 

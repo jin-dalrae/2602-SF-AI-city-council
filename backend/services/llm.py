@@ -49,7 +49,7 @@ async def get_embedding(text: str) -> list[float]:
             )
         )
         return response.embeddings[0].values
-    except:
+    except Exception:
         return []
 
 
@@ -106,34 +106,37 @@ Analysis Task:
 
 async def evolve_brain(agent_name: str, current_traits: list[str], finding: dict) -> dict:
     """
-    LLM evaluates the agent's research and decides if it should update its traits 
-    or log a 'learning' message about its own process.
+    LLM evaluates the agent's research and decides if it should update its traits.
     """
+    schema = {
+        "learning_message": "1-sentence message about what was learned",
+        "new_trait": "Optional: new specific expertise title",
+        "evolved_thought": "Short internal reflection",
+        "code_update": {
+            "method_name": "Optional: name of method to update",
+            "new_code": "Optional: The complete NEW python code for that method"
+        },
+        "rationale": "Briefly explain the reason for this evolution."
+    }
+    
     prompt = f"""You are the internal 'Brain Controller' for an AI agent named {agent_name}.
 Current traits: {current_traits}
 Latest finding: {json.dumps(finding)}
 
 Analyze if the agent discovered a new analytical pattern or if it should evolve its traits.
-Return JSON ONLY:
-{{
-  "learning_message": "A 1-sentence message about what the agent learned about the city or its data (e.g. 'I noticed a strong correlation between road repairs and neighborhood income levels.')",
-  "new_trait": "Optional: a new specific expertise title (e.g. 'Pothole Density Specialist')",
-  "evolved_thought": "Short internal reflection on how to improve next analysis (e.g. 'I need to cross-reference budget data more closely with public works requests.')",
-  "code_update": {
-      "method_name": "Optional: name of method to update (e.g. 'build_analysis_prompt')",
-      "new_code": "Optional: The complete NEW python code for that method ONLY. Must be properly indented."
-  },
-  "rationale": "Briefly explain the reason for this evolution."
-}}
+Return JSON ONLY matching this schema:
+{json.dumps(schema, indent=2)}
 """
     try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
+        response = await asyncio.to_thread(
+            lambda: client.models.generate_content(
+                model=MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
+            )
         )
         return json.loads(response.text)
-    except:
+    except Exception:
         return {"learning_message": "Research cycle complete.", "new_trait": None, "evolved_thought": "Continuing monitoring."}
 
 

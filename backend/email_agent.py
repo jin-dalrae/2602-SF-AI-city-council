@@ -9,7 +9,7 @@ from backend.services import llm
 
 load_dotenv()
 
-COMPOSIO_API_KEY = "ak_zMx6z54f0h6_e1BApUnw"
+COMPOSIO_API_KEY = os.getenv("COMPOSIO_API_KEY", "")
 
 
 async def draft_email(

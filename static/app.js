@@ -14,6 +14,17 @@ const esc = (str) => {
     return str.toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
 };
 
+// Helper to sanitize strings for safe innerHTML insertion
+const sanitize = (str) => {
+    if (!str) return '';
+    return str.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
 // ── Icons ──
 const ICONS = {
     shield: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>`,
@@ -299,12 +310,12 @@ function showBrainMessage(data) {
     const html = brainLogs.map((log, idx) => `
         <div class="${idx === 0 ? 'brain-flash' : ''} bg-gray-800/40 border border-gray-700/50 rounded-lg p-3 card-enter">
             <div class="flex items-center gap-2 mb-1">
-                <span class="text-lg">${log.icon || '🤖'}</span>
-                <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">${log.agent_name}</span>
+                <span class="text-lg">${sanitize(log.icon) || '🤖'}</span>
+                <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">${sanitize(log.agent_name)}</span>
                 <span class="text-[10px] text-gray-500 ml-auto">${new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-            <p class="text-xs text-gray-200 font-medium leading-relaxed">${log.message}</p>
-            ${log.thought ? `<p class="text-[10px] text-gray-500 mt-1 italic border-l border-gray-700 pl-2">"${log.thought}"</p>` : ''}
+            <p class="text-xs text-gray-200 font-medium leading-relaxed">${sanitize(log.message)}</p>
+            ${log.thought ? `<p class="text-[10px] text-gray-500 mt-1 italic border-l border-gray-700 pl-2">"${sanitize(log.thought)}"</p>` : ''}
         </div>
     `).join('');
 
@@ -318,45 +329,45 @@ function renderCard(f, key) {
     const cardId = f.agent_name.replace(/[^a-zA-Z0-9]/g, '_');
 
     const traitsHtml = (f.traits || []).map(t =>
-        `<span class="text-[10px] bg-indigo-900/40 text-indigo-300 border border-indigo-800/50 rounded-full px-2 py-0.5">${t}</span>`
+        `<span class="text-[10px] bg-indigo-900/40 text-indigo-300 border border-indigo-800/50 rounded-full px-2 py-0.5">${sanitize(t)}</span>`
     ).join('');
 
     const metricsHtml = (f.key_metrics || []).slice(0, 4).map(m =>
         `<div class="bg-gray-800/50 rounded px-2 py-1.5 hover:bg-gray-800 transition">
-            <div class="text-xs text-gray-500">${m.label || m.metric || 'Metric'}</div>
-            <div class="text-sm font-medium">${m.value}</div>
+            <div class="text-xs text-gray-500">${sanitize(m.label || m.metric || 'Metric')}</div>
+            <div class="text-sm font-medium">${sanitize(m.value)}</div>
         </div>`
     ).join('');
 
     const officialsHtml = (f.officials || []).map(o => `
         <div class="flex items-center gap-2 mt-1">
-            <div class="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[8px] text-white font-bold shrink-0">${o.name.charAt(0)}</div>
-            <div class="text-[10px] text-gray-400 truncate"><span class="font-medium text-gray-300">${o.name}</span> (${o.title})</div>
+            <div class="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[8px] text-white font-bold shrink-0">${sanitize(o.name.charAt(0))}</div>
+            <div class="text-[10px] text-gray-400 truncate"><span class="font-medium text-gray-300">${sanitize(o.name)}</span> (${sanitize(o.title)})</div>
         </div>
     `).join('');
 
 
     const evidenceHtml = (f.evidence || []).slice(0, 3).map(e =>
-        `<li class="text-xs text-gray-400">${typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e)}</li>`
+        `<li class="text-xs text-gray-400">${sanitize(typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e))}</li>`
     ).join('');
 
     const newsHtml = (f.news_context || []).length > 0
         ? `<div class="mt-3 border-t border-gray-700 pt-2">
             <p class="text-xs font-medium text-indigo-400 mb-1">📰 Related News (${f.news_context.length}):</p>
-            ${f.news_context.slice(0, 3).map(n => `<p class="text-xs text-gray-400 mb-1">• ${n.substring(0, 120)}${n.length > 120 ? '...' : ''}</p>`).join('')}
+            ${f.news_context.slice(0, 3).map(n => `<p class="text-xs text-gray-400 mb-1">• ${sanitize(n.substring(0, 120))}${n.length > 120 ? '...' : ''}</p>`).join('')}
            </div>`
         : '';
 
     const trendingHtml = (f.trending_topics || []).length > 0
         ? `<div class="flex flex-wrap gap-1 mt-2">
-            ${f.trending_topics.map(t => `<span class="text-xs bg-indigo-900/50 text-indigo-300 rounded px-2 py-0.5">#${t}</span>`).join('')}
+            ${f.trending_topics.map(t => `<span class="text-xs bg-indigo-900/50 text-indigo-300 rounded px-2 py-0.5">#${sanitize(t)}</span>`).join('')}
            </div>`
         : '';
 
     const neighborhoodsHtml = (f.affected_neighborhoods || []).length > 0
         ? `<div class="flex flex-wrap gap-1 mt-2">
             <span class="text-xs text-gray-500">Areas: </span>
-            ${f.affected_neighborhoods.map(n => `<span class="text-xs bg-gray-800 text-gray-400 rounded px-1.5 py-0.5">${n}</span>`).join('')}
+            ${f.affected_neighborhoods.map(n => `<span class="text-xs bg-gray-800 text-gray-400 rounded px-1.5 py-0.5">${sanitize(n)}</span>`).join('')}
            </div>`
         : '';
 
@@ -369,14 +380,14 @@ function renderCard(f, key) {
                 <div class="flex items-center gap-2">
                     <div class="w-9 h-9 ${sev.bg} ${sev.text} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">${icon}</div>
                     <div>
-                        <h3 class="text-sm font-bold group-hover:text-indigo-400 transition">${f.agent_name}</h3>
+                        <h3 class="text-sm font-bold group-hover:text-indigo-400 transition">${sanitize(f.agent_name)}</h3>
                         <div class="flex items-center gap-2 mt-0.5">
-                           <span class="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">${f.department}</span>
+                           <span class="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">${sanitize(f.department)}</span>
                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
                         </div>
                     </div>
                 </div>
-                <span class="text-[10px] ${sev.badge} rounded-full px-2 py-0.5 font-bold text-white uppercase tracking-tighter shadow-sm">${f.severity}</span>
+                <span class="text-[10px] ${sev.badge} rounded-full px-2 py-0.5 font-bold text-white uppercase tracking-tighter shadow-sm">${sanitize(f.severity)}</span>
             </div>
 
             <!-- Traits (Hidden to reduce clutter) -->
@@ -384,14 +395,14 @@ function renderCard(f, key) {
 
 
             <!-- Issue Title -->
-            <h4 class="font-semibold text-sm mb-2 group-hover:text-white transition">${f.issue_title || 'Analyzing...'}</h4>
+            <h4 class="font-semibold text-sm mb-2 group-hover:text-white transition">${sanitize(f.issue_title) || 'Analyzing...'}</h4>
 
             <!-- Summary -->
-            <p class="text-xs text-gray-400 mb-3 line-clamp-2">${f.summary || ''}</p>
+            <p class="text-xs text-gray-400 mb-3 line-clamp-2">${sanitize(f.summary) || ''}</p>
 
             ${(f.status_updates && f.status_updates.length > 1) ? `
             <div class="mt-[-8px] mb-3 text-[10px] bg-indigo-500/10 text-indigo-400 p-1.5 rounded border border-indigo-500/20 italic line-clamp-1">
-                <span class="font-bold not-italic">Update:</span> ${f.status_updates[f.status_updates.length - 1].note}
+                <span class="font-bold not-italic">Update:</span> ${sanitize(f.status_updates[f.status_updates.length - 1].note)}
             </div>` : ''}
 
             <!-- Metrics -->
@@ -450,57 +461,57 @@ function openDetailModal(key) {
     selectedFinding = f;
     const modal = document.getElementById('detail-modal');
     const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
-    const icon = ICONS[f.icon] || `<span class="text-2xl">${f.icon || '📊'}</span>`;
+    const icon = ICONS[f.icon] || `<span class="text-2xl">${sanitize(f.icon) || '📊'}</span>`;
 
     // Build detailed content
     const metricsHtml = (f.key_metrics || []).map(m =>
         `<div class="bg-gray-800 rounded-lg p-3">
-            <div class="text-xs text-gray-500 mb-1">${m.label || m.metric || 'Metric'}</div>
-            <div class="text-lg font-bold ${sev.text}">${m.value}</div>
+            <div class="text-xs text-gray-500 mb-1">${sanitize(m.label || m.metric || 'Metric')}</div>
+            <div class="text-lg font-bold ${sev.text}">${sanitize(m.value)}</div>
         </div>`
     ).join('');
 
     const evidenceHtml = (f.evidence || []).map(e =>
         `<li class="text-sm text-gray-300 mb-2 pl-2 border-l-2 border-indigo-500">
-            ${typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e)}
+            ${sanitize(typeof e === 'string' ? e : e.finding || e.description || JSON.stringify(e))}
         </li>`
     ).join('');
 
     const officialsHtml = (f.officials || []).map(o => `
         <div class="bg-gray-800 rounded-lg p-3 flex items-start gap-3">
             <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
-                ${o.name.charAt(0)}
+                ${sanitize(o.name.charAt(0))}
             </div>
             <div>
-                <div class="font-medium text-white">${o.name}</div>
-                <div class="text-xs text-gray-400">${o.title}${o.department ? ` • ${o.department}` : ''}</div>
-                ${o.email ? `<a href="mailto:${o.email}" class="text-xs text-indigo-400 hover:underline">${o.email}</a>` : ''}
+                <div class="font-medium text-white">${sanitize(o.name)}</div>
+                <div class="text-xs text-gray-400">${sanitize(o.title)}${o.department ? ` • ${sanitize(o.department)}` : ''}</div>
+                ${o.email ? `<a href="mailto:${sanitize(o.email)}" class="text-xs text-indigo-400 hover:underline">${sanitize(o.email)}</a>` : ''}
             </div>
         </div>
     `).join('');
 
     const newsHtml = (f.news_context || []).map(n => `
         <div class="text-sm text-gray-300 mb-2 pl-3 border-l-2 border-yellow-500">
-            ${n}
+            ${sanitize(n)}
         </div>
     `).join('');
 
     const rawHeadlinesHtml = (f.raw_headlines || []).map(h => `
-        <div class="text-sm text-gray-400 mb-1">• ${h}</div>
+        <div class="text-sm text-gray-400 mb-1">• ${sanitize(h)}</div>
     `).join('');
 
     const neighborhoodsHtml = (f.affected_neighborhoods || []).map(n =>
-        `<span class="text-sm bg-gray-800 text-gray-300 rounded-lg px-3 py-1">${n}</span>`
+        `<span class="text-sm bg-gray-800 text-gray-300 rounded-lg px-3 py-1">${sanitize(n)}</span>`
     ).join('');
 
     const trendingHtml = (f.trending_topics || []).map(t =>
-        `<span class="text-sm bg-indigo-900/50 text-indigo-300 rounded-lg px-3 py-1">#${t}</span>`
+        `<span class="text-sm bg-indigo-900/50 text-indigo-300 rounded-lg px-3 py-1">#${sanitize(t)}</span>`
     ).join('');
 
     const statusUpdatesHtml = (f.status_updates || []).reverse().map(u => `
         <div class="mb-3 pl-3 border-l-2 border-indigo-500 py-1 bg-indigo-900/10 rounded-r-lg">
             <div class="text-[10px] text-gray-500 font-mono mb-0.5">${timeAgo(u.timestamp)}</div>
-            <div class="text-xs text-gray-300">${u.note}</div>
+            <div class="text-xs text-gray-300">${sanitize(u.note)}</div>
         </div>
     `).join('');
 
@@ -510,17 +521,17 @@ function openDetailModal(key) {
             <div class="flex items-center gap-4">
                 <div class="w-14 h-14 ${sev.bg} ${sev.text} rounded-xl flex items-center justify-center text-2xl">${icon}</div>
                 <div>
-                    <h2 class="text-xl font-bold">${f.agent_name}</h2>
-                    <p class="text-sm text-gray-400">${f.department} • ${timeAgo(f.timestamp)}</p>
+                    <h2 class="text-xl font-bold">${sanitize(f.agent_name)}</h2>
+                    <p class="text-sm text-gray-400">${sanitize(f.department)} • ${timeAgo(f.timestamp)}</p>
                 </div>
             </div>
-            <span class="text-sm ${sev.badge} rounded-full px-3 py-1 font-medium text-white uppercase">${f.severity}</span>
+            <span class="text-sm ${sev.badge} rounded-full px-3 py-1 font-medium text-white uppercase">${sanitize(f.severity)}</span>
         </div>
-        
+
         <!-- Issue Title -->
         <div class="bg-gray-800/50 rounded-xl p-4 mb-6">
-            <h3 class="text-lg font-bold mb-2">${f.issue_title || 'Analysis in Progress'}</h3>
-            <p class="text-gray-300">${f.summary || 'Gathering data...'}</p>
+            <h3 class="text-lg font-bold mb-2">${sanitize(f.issue_title) || 'Analysis in Progress'}</h3>
+            <p class="text-gray-300">${sanitize(f.summary) || 'Gathering data...'}</p>
         </div>
 
         <!-- Issue Updates (Timeline) -->
@@ -552,7 +563,7 @@ function openDetailModal(key) {
         <div class="mb-6">
             <h4 class="text-sm font-bold text-gray-400 uppercase mb-3">💡 Recommendation</h4>
             <div class="bg-indigo-900/20 border border-indigo-800 rounded-xl p-4">
-                <p class="text-gray-300">${f.solution}</p>
+                <p class="text-gray-300">${sanitize(f.solution)}</p>
             </div>
         </div>` : ''}
         
@@ -571,7 +582,7 @@ function openDetailModal(key) {
                 <span class="text-[10px] bg-indigo-900 px-1.5 py-0.5 rounded-full">Continual Learning</span>
             </h4>
             <div class="bg-indigo-900/10 border border-indigo-800/30 rounded-xl p-3 space-y-2">
-                ${f.recalled_memories.map(m => `<p class="text-xs text-gray-400 italic">"Matches past pattern: ${m}"</p>`).join('')}
+                ${f.recalled_memories.map(m => `<p class="text-xs text-gray-400 italic">"Matches past pattern: ${sanitize(m)}"</p>`).join('')}
             </div>
         </div>` : ''}
 
@@ -583,7 +594,7 @@ function openDetailModal(key) {
                 <span class="text-[10px] bg-green-900/50 text-green-300 px-1.5 py-0.5 rounded-full">via You.com</span>
             </h4>
             <div class="bg-green-900/5 border border-green-800/30 rounded-xl p-3">
-                <p class="text-xs text-gray-400 line-clamp-3">${f.verified_context}</p>
+                <p class="text-xs text-gray-400 line-clamp-3">${sanitize(f.verified_context)}</p>
             </div>
         </div>` : ''}
         
@@ -704,12 +715,12 @@ async function showStatsModal(label) {
                     ${Object.entries(agents).map(([name, status]) => `
                         <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="font-bold text-white">${name}</span>
+                                <span class="font-bold text-white">${sanitize(name)}</span>
                                 <span class="text-xs px-2 py-1 rounded-full font-medium ${status.status.includes('RUNNING') ? 'bg-green-500/10 text-green-400' :
                     status.status.includes('ERROR') ? 'bg-red-500/10 text-red-400' : 'bg-gray-700 text-gray-400'
-                }">${status.status}</span>
+                }">${sanitize(status.status)}</span>
                             </div>
-                            <p class="text-xs text-gray-400">${status.details || 'Operational'}</p>
+                            <p class="text-xs text-gray-400">${sanitize(status.details) || 'Operational'}</p>
                             <p class="text-[10px] text-gray-600 mt-2">Last loop: ${timeAgo(status.updated_at)}</p>
                         </div>
                     `).join('')}
@@ -735,16 +746,18 @@ async function showStatsModal(label) {
                 <p class="text-xs text-gray-500 mt-1">Aggregated detections across all departments</p>
             </div>
             <div class="space-y-3">
-                ${filtered.length ? filtered.map(f => `
-                    <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800 cursor-pointer hover:border-gray-600 group transition" onclick="openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+                ${filtered.length ? filtered.map(f => {
+                    const fKey = f.issue_title ? `${f.agent_name}:${f.issue_title}` : f.agent_name;
+                    return `
+                    <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800 cursor-pointer hover:border-gray-600 group transition" onclick="openDetailModal('${esc(fKey)}')">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-bold text-indigo-400 uppercase">${f.agent_name}</span>
+                            <span class="text-xs font-bold text-indigo-400 uppercase">${sanitize(f.agent_name)}</span>
                             <span class="text-[10px] text-gray-600">${timeAgo(f.timestamp)}</span>
                         </div>
-                        <h3 class="text-sm font-semibold text-white mb-1 group-hover:text-indigo-400 transition">${f.issue_title}</h3>
-                        <p class="text-xs text-gray-400 line-clamp-2">${f.summary}</p>
-                    </div>
-                `).join('') : '<p class="text-gray-500 text-center py-10">No issues currently flagged in this category.</p>'}
+                        <h3 class="text-sm font-semibold text-white mb-1 group-hover:text-indigo-400 transition">${sanitize(f.issue_title)}</h3>
+                        <p class="text-xs text-gray-400 line-clamp-2">${sanitize(f.summary)}</p>
+                    </div>`;
+                }).join('') : '<p class="text-gray-500 text-center py-10">No issues currently flagged in this category.</p>'}
             </div>
         `;
     } else if (label === 'Collaborations') {
@@ -758,15 +771,17 @@ async function showStatsModal(label) {
                 <p class="text-xs text-gray-500 mt-1">Joint analysis automatically triggered by overlapping datasets</p>
             </div>
             <div class="space-y-3">
-                ${collabs.length ? collabs.map(f => `
-                    <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800 cursor-pointer hover:border-gray-600 group transition" onclick="openDetailModal('${f.agent_name.replace(/'/g, "\\'")}')">
+                ${collabs.length ? collabs.map(f => {
+                    const fKey = f.issue_title ? `${f.agent_name}:${f.issue_title}` : f.agent_name;
+                    return `
+                    <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-800 cursor-pointer hover:border-gray-600 group transition" onclick="openDetailModal('${esc(fKey)}')">
                          <div class="flex items-center justify-between mb-1">
                             <span class="text-[10px] text-gray-600">${timeAgo(f.timestamp)}</span>
                         </div>
-                        <h3 class="text-sm font-semibold text-white mb-1 group-hover:text-purple-400 transition">${f.agent_name.replace('Collaboration: ', '')}</h3>
-                        <p class="text-xs text-gray-400 line-clamp-2">${f.issue_title}</p>
-                    </div>
-                `).join('') : `
+                        <h3 class="text-sm font-semibold text-white mb-1 group-hover:text-purple-400 transition">${sanitize(f.agent_name.replace('Collaboration: ', ''))}</h3>
+                        <p class="text-xs text-gray-400 line-clamp-2">${sanitize(f.issue_title)}</p>
+                    </div>`;
+                }).join('') : `
                     <div class="text-center py-10">
                         <div class="text-4xl mb-4">🤝</div>
                         <p class="text-gray-500">No active collaborations. Agents are currently cross-referencing datasets for overlaps.</p>
@@ -788,10 +803,10 @@ async function showStatsModal(label) {
                 ${agentFindings.flatMap(f => (f.key_metrics || []).map(m => `
                     <div class="bg-gray-800/50 rounded-xl p-3 border border-gray-800 hover:border-cyan-500 transition cursor-default">
                         <div class="flex justify-between items-start mb-1">
-                            <div class="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">${f.agent_name}</div>
+                            <div class="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">${sanitize(f.agent_name)}</div>
                         </div>
-                        <div class="text-xs text-gray-400 font-medium">${m.label || m.metric}</div>
-                        <div class="text-xl font-bold text-white">${m.value}</div>
+                        <div class="text-xs text-gray-400 font-medium">${sanitize(m.label || m.metric)}</div>
+                        <div class="text-xl font-bold text-white">${sanitize(m.value)}</div>
                     </div>
                 `)).join('')}
             </div>

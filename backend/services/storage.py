@@ -76,9 +76,9 @@ def save_memory(agent_name: str, summary: str, embedding: list[float]) -> None:
         try:
             with open(MEMORY_FILE, "r") as f:
                 memories = json.load(f)
-        except:
+        except (json.JSONDecodeError, IOError):
             memories = []
-    
+
     memories.append({
         "agent": agent_name,
         "summary": summary,
@@ -100,7 +100,7 @@ def search_memory(agent_name: str, query_embedding: list[float], limit: int = 3)
     try:
         with open(MEMORY_FILE, "r") as f:
             memories = json.load(f)
-    except:
+    except (json.JSONDecodeError, IOError):
         return []
     
     # Filter for this agent's memories

@@ -15,17 +15,14 @@ class CityAgent(ABC):
     news_query: str = ""  # Each agent sets a You.com search query for news
     datasets: dict[str, str] = {}  # {label: dataset_id}
     officials: list[dict] = []     # [{name, title, email}]
-    traits: list[str] = ["Expert Data Analyst"]
-    brain_log: list[dict] = []     # [{"message", "thought", "timestamp"}]
-
     def __init__(self, findings_store: dict, event_queue: asyncio.Queue):
         self.socrata = SocrataClient()
         self.findings_store = findings_store
         self.event_queue = event_queue
-        # Load traits if they exist in store (persistence)
+        self.brain_log: list[dict] = []
+        # Load traits if they exist in store (persistence), otherwise start fresh
         stored = self.findings_store.get(f"_traits_{self.name}")
-        if stored:
-            self.traits = stored
+        self.traits: list[str] = stored if stored else ["Expert Data Analyst"]
 
     @abstractmethod
     async def fetch_data(self) -> dict:
@@ -116,7 +113,7 @@ class CityAgent(ABC):
                 my_keywords.add(cleaned)
 
         for other_name, other_finding in all_findings.items():
-            if other_name == self.name or other_name.startswith("Collaboration:") or other_name.startswith("_"):
+            if other_name == self.name or other_name.startswith(f"{self.name}:") or other_name.startswith("Collaboration:") or other_name.startswith("_"):
                 continue
             if not isinstance(other_finding, dict):
                 continue
