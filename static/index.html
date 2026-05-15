@@ -4,237 +4,347 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI City Council - SF Civic Dashboard</title>
+    <title>AICC · SF · Civic Operations</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        @keyframes pulse-dot {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.3;
-            }
+        :root {
+            --bg: #07090d;
+            --bg-2: #0d1117;
+            --bg-3: #161b22;
+            --bg-hover: #1c2128;
+            --border: #1f242c;
+            --border-2: #2a313b;
+            --border-3: #3a424f;
+            --text: #e6edf3;
+            --text-2: #9ca3af;
+            --text-3: #6b7280;
+            --text-4: #4b5563;
+            --accent: #84cc16;
+            --accent-2: #a3e635;
+            --sev-critical: #ef4444;
+            --sev-high: #f97316;
+            --sev-medium: #eab308;
+            --sev-low: #22c55e;
+            --collab: #c084fc;
         }
 
-        .pulse-dot {
-            animation: pulse-dot 2s infinite;
+        html, body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 13px;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-feature-settings: "cv02", "cv03", "cv04"; }
+        .label { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+        .hairline { border-color: var(--border); }
+        .panel { background: var(--bg-2); border: 1px solid var(--border); }
+        .row { border-bottom: 1px solid var(--border); }
+        .row:hover { background: var(--bg-3); }
+        .row.is-selected { background: var(--bg-hover); }
+
+        /* Severity bars (three-cell ▓▓▓ glyph). */
+        .sev-bar { display: inline-flex; gap: 2px; align-items: center; }
+        .sev-bar > span { display: inline-block; width: 6px; height: 14px; background: var(--border-2); border-radius: 1px; }
+        .sev-critical > span:nth-child(-n+3) { background: var(--sev-critical); box-shadow: 0 0 6px color-mix(in srgb, var(--sev-critical) 50%, transparent); }
+        .sev-high > span:nth-child(-n+2) { background: var(--sev-high); }
+        .sev-medium > span:nth-child(-n+1) { background: var(--sev-medium); }
+        .sev-low > span:nth-child(-n+1) { background: var(--sev-low); opacity: 0.5; }
+
+        .sev-text-critical { color: var(--sev-critical); }
+        .sev-text-high { color: var(--sev-high); }
+        .sev-text-medium { color: var(--sev-medium); }
+        .sev-text-low { color: var(--sev-low); }
+
+        .live-dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); box-shadow: 0 0 8px var(--accent);
+            animation: heartbeat 1.6s ease-in-out infinite;
+        }
+        @keyframes heartbeat {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
         }
 
-        .severity-critical {
-            border-left: 4px solid #ef4444;
+        .delta-up { color: var(--sev-high); }
+        .delta-down { color: var(--sev-low); }
+        .delta-flat { color: var(--text-3); }
+
+        .severity-ribbon-segment {
+            height: 4px;
+            border-radius: 1px;
+            transition: width 0.4s ease;
         }
 
-        .severity-high {
-            border-left: 4px solid #f97316;
+        /* Slide-in panel */
+        .side-panel {
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: min(560px, 100vw);
+            background: var(--bg-2);
+            border-left: 1px solid var(--border);
+            transform: translateX(100%);
+            transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+            overflow-y: auto;
+            z-index: 60;
+        }
+        .side-panel.is-open { transform: translateX(0); box-shadow: -8px 0 32px rgba(0,0,0,0.6); }
+        .side-panel-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 50;
+        }
+        .side-panel-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center;
+            z-index: 80; padding: 1rem;
+        }
+        .modal-backdrop.is-open { display: flex; }
+        .modal-card {
+            background: var(--bg-2); border: 1px solid var(--border);
+            border-radius: 6px; width: 100%; max-width: 520px;
+            max-height: 90vh; overflow-y: auto;
         }
 
-        .severity-medium {
-            border-left: 4px solid #eab308;
+        /* Inputs */
+        input[type="text"], input[type="email"], textarea {
+            background: var(--bg); border: 1px solid var(--border-2);
+            color: var(--text); border-radius: 4px;
+            padding: 8px 10px; font-size: 13px; width: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, textarea:focus {
+            outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+        }
+        button.btn {
+            background: var(--bg-3); border: 1px solid var(--border-2);
+            color: var(--text); padding: 6px 12px; border-radius: 4px;
+            font-size: 12px; font-weight: 500; transition: all 0.15s;
+            font-family: 'Inter', sans-serif;
+        }
+        button.btn:hover { background: var(--bg-hover); border-color: var(--border-3); }
+        button.btn.btn-primary { background: var(--accent); color: #0a0a0a; border-color: var(--accent); font-weight: 600; }
+        button.btn.btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+        button.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        kbd {
+            font-family: 'JetBrains Mono', monospace; font-size: 10px;
+            background: var(--bg-3); border: 1px solid var(--border-2);
+            border-bottom-width: 2px; padding: 1px 5px; border-radius: 3px;
+            color: var(--text-2);
         }
 
-        .severity-low {
-            border-left: 4px solid #22c55e;
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-3); }
+
+        /* Sparkline */
+        .sparkline { display: inline-flex; gap: 1px; align-items: flex-end; height: 20px; }
+        .sparkline span {
+            width: 3px; background: var(--accent); border-radius: 1px;
+            opacity: 0.7;
+        }
+        .sparkline span:last-child { opacity: 1; }
+
+        /* Brain feed lines */
+        .brain-line {
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            line-height: 1.55; padding: 4px 0;
+            border-bottom: 1px dashed var(--border);
+            color: var(--text-2);
+        }
+        .brain-line .ts { color: var(--text-4); }
+        .brain-line .agent { color: var(--accent-2); }
+        .brain-line .msg { color: var(--text); }
+        .brain-flash { animation: flash 1.6s ease-out; }
+        @keyframes flash {
+            0% { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+            100% { background: transparent; }
         }
 
-        .card-enter {
-            animation: slideUp 0.4s ease-out;
+        .row-enter { animation: rowSlide 0.32s ease-out; }
+        @keyframes rowSlide {
+            from { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+            to { background: transparent; }
         }
 
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .collaboration-card {
-            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #4f46e5;
-            border-radius: 10px;
-        }
-
-        .brain-flash {
-            animation: flashIndigo 1.5s ease-out;
-        }
-
-        @keyframes flashIndigo {
-            0% {
-                background-color: rgba(79, 70, 229, 0.2);
-            }
-
-            100% {
-                background-color: transparent;
-            }
-        }
+        /* Collaboration row tint */
+        .row-collab { background: color-mix(in srgb, var(--collab) 6%, transparent); }
+        .row-collab:hover { background: color-mix(in srgb, var(--collab) 12%, transparent); }
     </style>
 </head>
 
-<body class="bg-gray-950 text-gray-100 min-h-screen">
-    <!-- Header -->
-    <header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+<body>
+    <!-- Status bar (header) -->
+    <header class="panel border-b sticky top-0 z-40">
+        <div class="max-w-[1600px] mx-auto px-5 py-2.5 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-xl font-bold">AI
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold">AI City Council</h1>
-                    <p class="text-xs text-gray-400">Real-time SF Civic Intelligence for Citizens</p>
-                </div>
+                <span class="mono font-semibold text-sm" style="color: var(--text)">AICC</span>
+                <span class="label">SF · Civic Operations</span>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
-                    <button id="btn-start" onclick="startAgents()"
-                        class="px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 hover:bg-gray-700">
-                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                        START
-                    </button>
-                    <button id="btn-stop" onclick="stopAgents()"
-                        class="px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 hover:bg-gray-700">
-                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                        STOP
-                    </button>
-                </div>
-                <button onclick="loadHistory()" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"
-                    title="Refresh Historical Data">
-                    🔄
-                </button>
-                <button onclick="setApiToken()" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"
-                    title="Set API token (required for start/stop/email)">
-                    🔑
-                </button>
-                <div id="connection-status" class="flex items-center gap-2 text-sm text-gray-400">
-                    <span class="w-2 h-2 rounded-full bg-yellow-500 pulse-dot"></span>
-                    Connecting...
-                </div>
-                <div id="last-updated" class="text-sm text-gray-500"></div>
+            <div class="flex items-center gap-5 text-[11px] mono" style="color: var(--text-2)">
+                <span><span id="status-dot" class="live-dot"></span><span id="status-label" class="ml-2">LIVE</span></span>
+                <span><span style="color: var(--text-4)">AGENTS</span> <span id="status-agents" style="color: var(--text)">0/0</span></span>
+                <span><span style="color: var(--text-4)">FINDINGS</span> <span id="status-findings" style="color: var(--text)">0</span></span>
+                <span id="status-clock" style="color: var(--text-3)">—</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button id="btn-start" class="btn" onclick="startAgents()" title="Start agents (s)">START</button>
+                <button id="btn-stop" class="btn" onclick="stopAgents()" title="Stop agents (S)">STOP</button>
+                <button class="btn" onclick="loadHistory()" title="Reload history">RELOAD</button>
+                <button class="btn" onclick="setApiToken()" title="Set API token">🔑</button>
+                <button class="btn" onclick="showHelp()" title="Keyboard shortcuts">?</button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="max-w-[1600px] mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div class="lg:col-span-3">
-            <!-- Stats Bar -->
-            <div id="stats-bar" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-            </div>
+    <main class="max-w-[1600px] mx-auto px-5 py-4 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
 
-            <!-- Agent Cards Grid -->
-            <div id="findings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                <!-- Loading placeholders -->
-                <div class="col-span-full text-center py-20 text-gray-500">
-                    <div class="text-4xl mb-4">🏛️</div>
-                    <p class="text-lg">Agents are analyzing SF open data...</p>
-                    <p class="text-sm mt-2">First findings will appear within 60 seconds</p>
+        <section>
+            <!-- Severity ribbon + sparkline -->
+            <div class="panel rounded p-3 mb-3 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center">
+                <div>
+                    <div class="label mb-1.5">Severity Distribution</div>
+                    <div id="severity-ribbon" class="flex items-center gap-3">
+                        <!-- populated by JS -->
+                    </div>
                 </div>
-            </div>
-
-            <!-- Pagination -->
-            <div id="pagination-container" class="mt-8 flex justify-center gap-2"></div>
-        </div>
-
-        <!-- Right Side: Brain Feed -->
-        <div class="lg:col-span-1 flex flex-col gap-4">
-            <div
-                class="bg-gray-900 border border-gray-800 rounded-xl p-4 sticky top-24 max-h-[calc(100vh-120px)] flex flex-col">
-                <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
-                    <h2 class="font-bold flex items-center gap-2">
-                        <span class="text-indigo-400">🧠</span> Agent Brain Feed
-                    </h2>
-                    <span id="brain-count" class="text-[10px] bg-indigo-600 px-1.5 py-0.5 rounded-full">0</span>
-                </div>
-                <div id="brain-feed" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                    <div class="text-center py-10 text-gray-600 text-xs italic">
-                        Agents are warming up their analytical models...
+                <div class="text-right">
+                    <div class="label mb-1.5">Findings · last 24h</div>
+                    <div class="flex items-center gap-2 justify-end">
+                        <div id="sparkline" class="sparkline"></div>
+                        <span id="sparkline-total" class="mono text-xs" style="color: var(--text-2)">—</span>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Findings table header -->
+            <div class="panel rounded">
+                <div class="grid grid-cols-[42px_180px_1fr_160px_90px] gap-3 px-3 py-2 border-b hairline label">
+                    <span>Sev</span>
+                    <span>Agent</span>
+                    <span>Issue</span>
+                    <span class="hidden md:block">Metric</span>
+                    <span class="hidden md:block text-right">Updated</span>
+                </div>
+                <div id="findings-rows">
+                    <!-- populated by JS -->
+                    <div class="px-3 py-12 text-center" style="color: var(--text-3)">
+                        <div class="mono text-[11px] mb-2">› boot sequence</div>
+                        <div>Agents are warming up — first findings appear within 60s.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pagination-container" class="mt-4 flex justify-center gap-1.5"></div>
+        </section>
+
+        <!-- Right rail: agent status + brain feed -->
+        <aside class="space-y-3">
+            <div class="panel rounded">
+                <div class="px-3 py-2 border-b hairline label flex items-center justify-between">
+                    <span>Agent Roster</span>
+                    <span id="agent-roster-count" class="mono text-[10px]" style="color: var(--text-2)">0/0</span>
+                </div>
+                <div id="agent-roster" class="px-2 py-1">
+                    <!-- populated by JS -->
+                </div>
+            </div>
+
+            <div class="panel rounded">
+                <div class="px-3 py-2 border-b hairline label flex items-center justify-between">
+                    <span>Brain Feed</span>
+                    <span id="brain-count" class="mono text-[10px]" style="color: var(--text-2)">0</span>
+                </div>
+                <div id="brain-feed" class="px-3 py-1 max-h-[420px] overflow-y-auto">
+                    <div class="brain-line"><span class="ts">--:--:--</span> <span class="agent">SYSTEM</span> › <span class="msg">awaiting agent telemetry…</span></div>
+                </div>
+            </div>
+        </aside>
     </main>
 
-    <footer class="max-w-[1600px] mx-auto px-4 py-6 mt-4 border-t border-gray-800 text-xs text-gray-500 flex flex-wrap items-center justify-between gap-2">
-        <span>AI City Council — civic intelligence for SF residents.</span>
-        <span class="space-x-3">
-            <a href="/terms" class="hover:text-gray-300">Terms of Service</a>
-            <a href="/privacy" class="hover:text-gray-300">Privacy Policy</a>
-            <a href="https://data.sfgov.org" class="hover:text-gray-300" target="_blank" rel="noopener">SF Open Data</a>
+    <footer class="max-w-[1600px] mx-auto px-5 py-4 mt-4 border-t hairline text-[11px] flex flex-wrap justify-between gap-2" style="color: var(--text-3)">
+        <span class="mono">AICC · civic intelligence for SF residents</span>
+        <span class="space-x-3 mono">
+            <a href="/terms" class="hover:text-white" style="color: inherit">TERMS</a>
+            <a href="/privacy" class="hover:text-white" style="color: inherit">PRIVACY</a>
+            <a href="https://data.sfgov.org" target="_blank" rel="noopener" class="hover:text-white" style="color: inherit">SF OPEN DATA</a>
         </span>
     </footer>
 
-    <!-- Email Modal -->
-    <div id="email-modal"
-        class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-start justify-center overflow-y-auto p-4 py-10">
-        <div class="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-lg relative">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold">Share Report with City Officials</h3>
-                    <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+    <!-- Detail side panel -->
+    <div id="detail-backdrop" class="side-panel-backdrop" onclick="closeDetailPanel()"></div>
+    <aside id="detail-panel" class="side-panel">
+        <div class="sticky top-0 panel border-b hairline px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="detail-sev-bar" class="sev-bar"><span></span><span></span><span></span></div>
+                <div>
+                    <div id="detail-agent" class="text-sm font-semibold">—</div>
+                    <div id="detail-dept" class="label">—</div>
                 </div>
-                <form id="email-form" class="space-y-3">
-                    <input type="hidden" id="email-agent-name">
-                    <div class="flex items-center gap-2 bg-indigo-900/30 border border-indigo-800 p-2 rounded-lg mb-2">
-                        <input type="checkbox" id="email-to-admin" checked
-                            class="w-4 h-4 rounded border-gray-700 bg-gray-800 text-indigo-600">
-                        <label for="email-to-admin" class="text-xs text-indigo-300 font-medium">Include City
-                            Administrator (Carmen Chu)</label>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Your Name</label>
-                        <input type="text" id="email-citizen"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
-                            placeholder="A concerned resident" value="A concerned resident">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Desired Action (AI Suggested)</label>
-                        <input type="text" id="email-outcome"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
-                            placeholder="What should the city do?">
-                    </div>
-                    <button type="submit"
-                        class="w-full bg-indigo-600 hover:bg-indigo-500 rounded-lg py-2 text-sm font-medium transition">
-                        Finalize & View Report
-                    </button>
-                </form>
-                <div id="email-result" class="hidden mt-4 bg-gray-800 rounded-lg p-4">
-                    <h4 class="text-sm font-bold text-gray-300 mb-2">Generated Draft:</h4>
-                    <p class="text-sm text-indigo-400 mb-1" id="email-result-to"></p>
-                    <p class="text-sm font-medium mb-2" id="email-result-subject"></p>
-                    <pre class="text-sm text-gray-300 whitespace-pre-wrap mb-4" id="email-result-body"></pre>
-                    <button id="btn-send-email"
-                        class="w-full bg-green-600 hover:bg-green-500 rounded-lg py-2 text-sm font-medium transition flex items-center justify-center gap-2">
-                        <span>🚀</span> Send Email via Composio
-                    </button>
+            </div>
+            <button class="btn" onclick="closeDetailPanel()" title="Close (Esc)">×</button>
+        </div>
+        <div id="detail-content" class="px-4 py-4"></div>
+    </aside>
+
+    <!-- Email modal -->
+    <div id="email-modal" class="modal-backdrop">
+        <div class="modal-card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-sm">Draft email to officials</h3>
+                <button class="btn" onclick="closeModal()">×</button>
+            </div>
+            <form id="email-form" class="space-y-3">
+                <input type="hidden" id="email-agent-name">
+                <label class="flex items-center gap-2 text-xs cursor-pointer" style="color: var(--text-2)">
+                    <input type="checkbox" id="email-to-admin" checked
+                        class="w-3.5 h-3.5 accent-lime-500">
+                    CC the City Administrator (Carmen Chu)
+                </label>
+                <div>
+                    <div class="label mb-1">Your name</div>
+                    <input type="text" id="email-citizen" placeholder="A concerned resident" value="A concerned resident">
                 </div>
+                <div>
+                    <div class="label mb-1">Desired action</div>
+                    <input type="text" id="email-outcome" placeholder="What should the city do?">
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Generate draft</button>
+            </form>
+            <div id="email-result" class="hidden mt-4 panel rounded p-3 space-y-2">
+                <div class="label">Generated draft</div>
+                <div id="email-result-to" class="mono text-[11px]" style="color: var(--accent-2)"></div>
+                <div id="email-result-subject" class="text-sm font-medium"></div>
+                <pre id="email-result-body" class="text-xs whitespace-pre-wrap mono p-2 rounded" style="color: var(--text-2); background: var(--bg); max-height: 280px; overflow-y: auto;"></pre>
+                <button id="btn-send-email" class="btn btn-primary w-full">Send via Composio</button>
             </div>
         </div>
     </div>
 
-    <!-- Detail Modal -->
-    <div id="detail-modal"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-start justify-center overflow-y-auto p-4 py-10">
-        <div class="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-2xl relative">
-            <button onclick="closeDetailModal()"
-                class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl z-10">&times;</button>
-            <div id="detail-content" class="p-6">
-                <!-- Content populated by JS -->
+    <!-- Help modal -->
+    <div id="help-modal" class="modal-backdrop">
+        <div class="modal-card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-sm">Keyboard shortcuts</h3>
+                <button class="btn" onclick="closeHelp()">×</button>
+            </div>
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between"><span>Navigate findings</span><span><kbd>J</kbd> <kbd>K</kbd></span></div>
+                <div class="flex justify-between"><span>Open selected</span><span><kbd>Enter</kbd> · <kbd>O</kbd></span></div>
+                <div class="flex justify-between"><span>Email selected</span><span><kbd>E</kbd></span></div>
+                <div class="flex justify-between"><span>Close panel/modal</span><span><kbd>Esc</kbd></span></div>
+                <div class="flex justify-between"><span>Start / Stop agents</span><span><kbd>s</kbd> · <kbd>Shift+S</kbd></span></div>
+                <div class="flex justify-between"><span>Reload history</span><span><kbd>R</kbd></span></div>
+                <div class="flex justify-between"><span>Set API token</span><span><kbd>T</kbd></span></div>
+                <div class="flex justify-between"><span>This help</span><span><kbd>?</kbd></span></div>
             </div>
         </div>
     </div>

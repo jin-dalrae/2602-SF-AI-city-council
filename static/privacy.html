@@ -4,150 +4,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy — AI City Council</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Privacy · AICC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/_legal.css">
 </head>
 
-<body class="bg-gray-950 text-gray-200 min-h-screen">
-    <header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-3">
-                <div class="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-lg font-bold text-white">AI</div>
-                <div>
-                    <h1 class="text-lg font-bold">AI City Council</h1>
-                    <p class="text-xs text-gray-400">Real-time SF Civic Intelligence</p>
-                </div>
+<body>
+    <header class="legal-header">
+        <div class="legal-header-inner">
+            <a href="/" class="brand">
+                <span class="mono">AICC</span>
+                <span class="label" style="border-left: 1px solid var(--border-2); padding-left: 12px;">Privacy Policy</span>
             </a>
-            <nav class="text-sm text-gray-400 space-x-4">
-                <a href="/" class="hover:text-white">Dashboard</a>
-                <a href="/terms" class="hover:text-white">Terms</a>
+            <nav class="legal-nav">
+                <a href="/">Dashboard</a>
+                <a href="/terms">Terms</a>
             </nav>
         </div>
     </header>
 
-    <main class="max-w-3xl mx-auto px-4 py-10">
-        <h1 class="text-3xl font-bold mb-2">Privacy Policy</h1>
-        <p class="text-sm text-gray-500 mb-6">Last updated: 2026-05-14 · Effective: 2026-05-14</p>
-        <p class="text-sm text-gray-400 mb-8 italic">This policy is written to comply with the California Consumer Privacy Act (CCPA) as amended by the California Privacy Rights Act (CPRA), California Civil Code § 1798.83 ("Shine the Light"), and the California Online Privacy Protection Act (CalOPPA). California residents have additional rights described in Section 9.</p>
+    <div class="legal-shell">
+        <aside class="legal-side">
+            <div class="label">Sections</div>
+            <nav>
+                <a href="#who">01 · Who we are</a>
+                <a href="#collect">02 · What we collect</a>
+                <a href="#categories">03 · Categories (CCPA)</a>
+                <a href="#sources">04 · Sources &amp; retention</a>
+                <a href="#disk">05 · Server-side storage</a>
+                <a href="#sale">06 · Sale or sharing</a>
+                <a href="#vendors">07 · Service providers</a>
+                <a href="#cookies">08 · Cookies &amp; tracking</a>
+                <a href="#rights">09 · California rights</a>
+                <a href="#minors">10 · Children</a>
+                <a href="#security">11 · Security</a>
+                <a href="#changes">12 · Changes</a>
+                <a href="#contact">13 · Contact</a>
+            </nav>
+        </aside>
 
-        <section class="space-y-6 text-gray-300 leading-relaxed">
-
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">1. Who we are</h2>
-                <p>AI City Council ("the dashboard," "we," "us") is an open civic-intelligence tool. The operator of this deployment is the entity hosting it at the URL you accessed; see the contact section for how to reach us.</p>
+        <main class="legal-content">
+            <h1>Privacy Policy</h1>
+            <div class="meta">
+                <span class="label">Last updated</span> <span class="mono">2026-05-14</span>
+                &nbsp;·&nbsp;
+                <span class="label">Effective</span> <span class="mono">2026-05-14</span>
+            </div>
+            <div class="lede">
+                Written to comply with the California Consumer Privacy Act (CCPA) as amended by the California Privacy Rights Act (CPRA), California Civil Code <code>§ 1798.83</code> ("Shine the Light"), and the California Online Privacy Protection Act (CalOPPA). California residents have additional rights described in Section 9.
             </div>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">2. What we collect</h2>
+            <section id="who">
+                <h2><span class="num mono">01</span>Who we are</h2>
+                <p>AI City Council ("the dashboard," "we," "us") is an open civic-intelligence tool. The operator of this deployment is the entity hosting it at the URL you accessed; see the contact section for how to reach us.</p>
+            </section>
+
+            <section id="collect">
+                <h2><span class="num mono">02</span>What we collect</h2>
                 <p>The dashboard collects only what is needed to operate. There is no analytics tracking, advertising SDK, or third-party fingerprinting.</p>
-                <ul class="list-disc pl-6 mt-2 space-y-1">
-                    <li><strong>API token</strong> — stored in your browser's <code class="text-indigo-300">localStorage</code> on the device you set it on. Transmitted only as an <code class="text-indigo-300">Authorization: Bearer</code> header to this server.</li>
+                <ul>
+                    <li><strong>API token</strong> — stored in your browser's <code>localStorage</code> on the device you set it on. Transmitted only as an <code>Authorization: Bearer</code> header to this server.</li>
                     <li><strong>Email-draft inputs</strong> — your stated name (or "A concerned resident"), your desired outcome, and the selected finding. Forwarded to the AI provider to generate a draft. Not stored on our server beyond the request lifetime.</li>
                     <li><strong>Sent-email payloads</strong> — when you press "Send," the recipient address, subject, and body are forwarded to Composio's Gmail integration.</li>
                     <li><strong>Server logs</strong> — standard FastAPI/uvicorn access logs (IP, timestamp, request path, status code) on the host.</li>
                 </ul>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">3. Categories of personal information (CCPA §1798.140)</h2>
+            <section id="categories">
+                <h2><span class="num mono">03</span>Categories of personal information (CCPA <code>§ 1798.140</code>)</h2>
                 <p>Mapped to the statutory categories:</p>
-                <ul class="list-disc pl-6 mt-2 space-y-1">
+                <ul>
                     <li><strong>Identifiers</strong> — IP address (server logs). Self-supplied name in email drafts.</li>
                     <li><strong>Internet/Network activity</strong> — HTTP request metadata in server logs.</li>
                     <li><strong>Customer records</strong> — name + email recipient(s) when you draft or send a message.</li>
                     <li><strong>Sensitive personal information</strong> — none collected.</li>
                     <li><strong>Biometric, geolocation, audio/visual, employment, education, financial, inferences</strong> — none collected.</li>
                 </ul>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">4. Sources, purposes, retention</h2>
+            <section id="sources">
+                <h2><span class="num mono">04</span>Sources, purposes, retention</h2>
                 <p><strong>Sources:</strong> directly from you (form inputs), automatically from your browser (HTTP metadata).</p>
-                <p class="mt-2"><strong>Purposes:</strong> operating the dashboard, authenticating mutating actions, generating email drafts, sending civic correspondence at your direction, debugging.</p>
-                <p class="mt-2"><strong>Retention:</strong></p>
-                <ul class="list-disc pl-6 mt-2 space-y-1">
+                <p><strong>Purposes:</strong> operating the dashboard, authenticating mutating actions, generating email drafts, sending civic correspondence at your direction, debugging.</p>
+                <p><strong>Retention:</strong></p>
+                <ul>
                     <li>Email-draft inputs: not retained beyond request lifetime.</li>
                     <li>Sent emails: retained by the recipient and the Gmail account used; we do not store a server-side copy.</li>
                     <li>Server access logs: rotated by the host OS (typically 14–90 days; varies by deployment).</li>
                     <li>Agent findings + embeddings: indefinite, but contain no visitor PII (only AI summaries of public city data).</li>
                 </ul>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">5. What the server stores on disk</h2>
-                <p>Persisted to <code class="text-indigo-300">backend/data/</code>:</p>
-                <ul class="list-disc pl-6 mt-2 space-y-1">
-                    <li><code class="text-indigo-300">findings.json</code> — current snapshot of agent findings.</li>
-                    <li><code class="text-indigo-300">findings_history.jsonl</code> — append-only history (tail-trimmed).</li>
-                    <li><code class="text-indigo-300">agent_memory.jsonl</code> — short text summaries plus embedding vectors used for retrieval-augmented analysis.</li>
+            <section id="disk">
+                <h2><span class="num mono">05</span>What the server stores on disk</h2>
+                <p>Persisted to <code>backend/data/</code>:</p>
+                <ul>
+                    <li><code>findings.json</code> — current snapshot of agent findings.</li>
+                    <li><code>findings_history.jsonl</code> — append-only history (tail-trimmed).</li>
+                    <li><code>agent_memory.jsonl</code> — short text summaries plus embedding vectors used for retrieval-augmented analysis.</li>
                 </ul>
-                <p class="mt-2">None of these contain visitor PII. They contain AI-generated summaries of <em>public</em> civic data.</p>
-            </div>
+                <p>None of these contain visitor PII. They contain AI-generated summaries of <em>public</em> civic data.</p>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">6. Sale or sharing of personal information</h2>
+            <section id="sale">
+                <h2><span class="num mono">06</span>Sale or sharing of personal information</h2>
                 <p><strong>We do not sell personal information.</strong> We do not share personal information for cross-context behavioral advertising. Therefore, no "Do Not Sell or Share My Personal Information" link is required — but if you would like a written confirmation of non-sale, contact us.</p>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">7. Service providers we use</h2>
-                <ul class="list-disc pl-6 mt-2 space-y-1">
-                    <li><strong>Google Gemini</strong> — prompts include public dataset summaries and (for email drafts) your inputs. Subject to <a href="https://policies.google.com/privacy" class="text-indigo-400 hover:underline">Google's Privacy Policy</a>.</li>
+            <section id="vendors">
+                <h2><span class="num mono">07</span>Service providers</h2>
+                <ul>
+                    <li><strong>Google Gemini</strong> — prompts include public dataset summaries and (for email drafts) your inputs. Subject to <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>.</li>
                     <li><strong>You.com</strong> — search queries about SF civic topics.</li>
-                    <li><strong>Composio</strong> — when you create a GitHub issue or send a Gmail message, the action body is forwarded to Composio's API, which proxies to GitHub / Gmail. Subject to <a href="https://composio.dev/legal" class="text-indigo-400 hover:underline">Composio's legal terms</a>.</li>
+                    <li><strong>Composio</strong> — when you create a GitHub issue or send a Gmail message, the action body is forwarded to Composio's API, which proxies to GitHub / Gmail. Subject to <a href="https://composio.dev/legal">Composio's legal terms</a>.</li>
                     <li><strong>SF Open Data (Socrata)</strong> — read-only public dataset queries.</li>
                 </ul>
-                <p class="mt-2">These vendors process data on our behalf as "service providers" or "contractors" under the CCPA. They are contractually restricted from using your information for their own marketing or from selling it.</p>
-            </div>
+                <p>These vendors process data on our behalf as "service providers" or "contractors" under the CCPA. They are contractually restricted from using your information for their own marketing or from selling it.</p>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">8. Cookies and tracking</h2>
-                <p>The dashboard does not set HTTP cookies and does not respond to "Do Not Track" signals because it does not track. The only client-side state is your API token in <code class="text-indigo-300">localStorage</code>, which you can clear at any time by clicking the 🔑 button and submitting an empty value, or by clearing site data in your browser.</p>
-            </div>
+            <section id="cookies">
+                <h2><span class="num mono">08</span>Cookies &amp; tracking</h2>
+                <p>The dashboard does not set HTTP cookies and does not respond to "Do Not Track" signals because it does not track. The only client-side state is your API token in <code>localStorage</code>, which you can clear at any time by clicking the 🔑 button and submitting an empty value, or by clearing site data in your browser.</p>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">9. Your California privacy rights</h2>
+            <section id="rights">
+                <h2><span class="num mono">09</span>Your California privacy rights</h2>
                 <p>If you are a California resident, the CCPA (as amended by the CPRA) gives you the following rights regarding personal information we hold about you:</p>
-                <ul class="list-disc pl-6 mt-2 space-y-1">
+                <ul>
                     <li><strong>Right to know</strong> — what categories of personal information we have collected, the sources, the business purposes, and the categories of third parties we share it with.</li>
                     <li><strong>Right to access</strong> — a copy of the specific pieces of personal information we have about you.</li>
                     <li><strong>Right to delete</strong> — request deletion of personal information we have collected from you, subject to statutory exceptions.</li>
                     <li><strong>Right to correct</strong> — request correction of inaccurate personal information.</li>
-                    <li><strong>Right to opt out of sale or sharing</strong> — N/A here; we do not sell or share for behavioral advertising.</li>
-                    <li><strong>Right to limit use of sensitive personal information</strong> — N/A here; we do not collect sensitive PI.</li>
+                    <li><strong>Right to opt out of sale or sharing</strong> — N/A; we do not sell or share for behavioral advertising.</li>
+                    <li><strong>Right to limit use of sensitive personal information</strong> — N/A; we do not collect sensitive PI.</li>
                     <li><strong>Right to non-discrimination</strong> — we will not deny service, charge a different price, or provide a different level of service because you exercised a CCPA right.</li>
                 </ul>
-                <p class="mt-2"><strong>How to exercise these rights:</strong> email the operator listed in Section 13. We will respond within 45 days (with a possible 45-day extension as permitted by law). We may need to verify your identity before fulfilling the request, typically by matching information you supply against what we have on file.</p>
-                <p class="mt-2"><strong>Authorized agents:</strong> you may designate an authorized agent to make a request on your behalf. The agent must provide written, signed authorization, and we may require you to confirm directly.</p>
-                <p class="mt-2"><strong>"Shine the Light" (Cal. Civ. Code § 1798.83):</strong> California residents may request a list of personal information disclosed to third parties for those third parties' direct marketing purposes during the preceding calendar year. We do not disclose personal information to third parties for their direct marketing.</p>
-            </div>
+                <p><strong>How to exercise:</strong> email the operator listed in Section 13. We will respond within 45 days (with a possible 45-day extension as permitted by law). We may need to verify your identity before fulfilling the request.</p>
+                <p><strong>Authorized agents:</strong> you may designate an authorized agent to make a request on your behalf. The agent must provide written, signed authorization, and we may require you to confirm directly.</p>
+                <p><strong>Shine the Light (Cal. Civ. Code <code>§ 1798.83</code>):</strong> California residents may request a list of personal information disclosed to third parties for those third parties' direct marketing purposes during the preceding calendar year. We do not disclose personal information to third parties for their direct marketing.</p>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">10. Children's privacy</h2>
+            <section id="minors">
+                <h2><span class="num mono">10</span>Children's privacy</h2>
                 <p>The dashboard is not directed at children under 13, and we do not knowingly collect personal information from children under 13 (COPPA). For California residents under 16, we do not sell or share personal information; affirmative opt-in would otherwise be required under the CCPA.</p>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">11. Security</h2>
+            <section id="security">
+                <h2><span class="num mono">11</span>Security</h2>
                 <p>Mutating endpoints require a bearer token configured by the operator and compared in constant time. There is no account system, no password storage, and no PII vault. We use standard transport security (HTTPS) when the dashboard is deployed behind a TLS-terminating proxy. No system is perfectly secure; you use the service at your own risk.</p>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">12. Changes</h2>
+            <section id="changes">
+                <h2><span class="num mono">12</span>Changes</h2>
                 <p>We may revise this policy. Material changes will be reflected in the "Last updated" date above. Continued use after a revision constitutes acceptance.</p>
-            </div>
+            </section>
 
-            <div>
-                <h2 class="text-xl font-semibold text-white mb-2">13. Contact</h2>
-                <p>For privacy questions, CCPA requests, or data-deletion requests, contact the operator listed in the dashboard's deployment configuration. California residents may also lodge a complaint with the <a href="https://cppa.ca.gov" class="text-indigo-400 hover:underline">California Privacy Protection Agency</a> or the California Attorney General's Office.</p>
-            </div>
-        </section>
+            <section id="contact">
+                <h2><span class="num mono">13</span>Contact</h2>
+                <p>For privacy questions, CCPA requests, or data-deletion requests, contact the operator listed in the dashboard's deployment configuration. California residents may also lodge a complaint with the <a href="https://cppa.ca.gov">California Privacy Protection Agency</a> or the California Attorney General's Office.</p>
+            </section>
+        </main>
+    </div>
 
-        <footer class="mt-16 pt-6 border-t border-gray-800 text-sm text-gray-500 flex justify-between">
-            <a href="/terms" class="hover:text-white">← Terms of Service</a>
-            <a href="/" class="hover:text-white">Back to dashboard →</a>
-        </footer>
-    </main>
+    <footer class="legal-footer">
+        <div class="legal-footer-inner">
+            <span>AICC · civic operations</span>
+            <span>
+                <a href="/">DASHBOARD</a> ·
+                <a href="/terms">TERMS</a>
+            </span>
+        </div>
+    </footer>
 </body>
 
 </html>
