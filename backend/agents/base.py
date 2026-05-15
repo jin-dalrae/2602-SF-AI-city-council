@@ -1,10 +1,9 @@
 import asyncio
-import json
-import sys
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from backend.services.socrata import SocrataClient
-from backend.services import llm, you_api, storage, actions
+
+from backend import deps
+from backend.services import llm, you_api, storage, composio_tools
 
 
 
@@ -16,7 +15,7 @@ class CityAgent(ABC):
     datasets: dict[str, str] = {}  # {label: dataset_id}
     officials: list[dict] = []     # [{name, title, email}]
     def __init__(self, findings_store: dict, event_queue: asyncio.Queue):
-        self.socrata = SocrataClient()
+        self.socrata = deps.socrata()
         self.findings_store = findings_store
         self.event_queue = event_queue
         self.brain_log: list[dict] = []
@@ -143,7 +142,7 @@ class CityAgent(ABC):
             finding = await self.analyze(data, news)
             
             # --- Active Action Loop (Composio) ---
-            action_result = await actions.trigger_civic_action(self.name, finding)
+            action_result = await composio_tools.trigger_civic_action(self.name, finding)
             if action_result.get("status") == "success":
                 await self._log_brain(
                     f"🚀 Created Civic Ticket on GitHub for: {finding.get('issue_title')[:50]}...",
@@ -152,32 +151,13 @@ class CityAgent(ABC):
                 )
             # ------------------------------------
 
-            # --- Brain Evolution Step ---
+            # --- Brain Evolution Step (trait-only; source rewrites removed) ---
             evolution = await llm.evolve_brain(self.name, self.traits, finding)
             if evolution.get("new_trait") and evolution["new_trait"] not in self.traits:
                 new_trait = evolution["new_trait"]
                 self.traits.append(new_trait)
                 self.findings_store[f"_traits_{self.name}"] = self.traits
                 await self._log_brain(f"🧬 Evolved new capability: {new_trait}", evolution.get("evolved_thought", "Improving analytical depth."), icon="🧬")
-            
-            # --- Recursive Code Evolution ---
-            if evolution.get("code_update"):
-                update = evolution["code_update"]
-                method_name = update.get("method_name")
-                new_code = update.get("new_code")
-                if method_name and new_code:
-                    # Resolve own file path
-                    module = sys.modules[self.__class__.__module__]
-                    file_path = getattr(module, "__file__", None)
-                    if file_path:
-                        success = storage.apply_code_update(file_path, method_name, new_code)
-                        if success:
-                            await self._log_brain(
-                                f"⚙️ Updated source code: Method `{method_name}`",
-                                f"Rationale: {evolution.get('rationale', 'Optimization')}",
-                                icon="⚙️"
-                            )
-            # ---------------------------
 
             # --- Issue Merging/Updating Logic ---
             issue_title = finding.get("issue_title", "General Update")
@@ -210,18 +190,14 @@ class CityAgent(ABC):
                 "status_updates": updates
             }
             
-            # Store with unique key to allow multiple issues, but reuse if title matches
             self.findings_store[storage_key] = output
-            # Also update the base 'agent name' key for legacy compatibility
-            self.findings_store[self.name] = output
-            
             await self.event_queue.put({"type": "finding", "data": output})
-            storage.append_to_history(output)  # Save to history
+            await storage.append_to_history(output)
 
             # --- Save to Episodic Memory ---
             mem_summary = f"{finding.get('issue_title')}: {finding.get('summary')}"
             mem_emb = await llm.get_embedding(mem_summary)
-            storage.save_memory(self.name, mem_summary, mem_emb)
+            await storage.save_memory(self.name, mem_summary, mem_emb)
             # -------------------------------
 
             # Check collaborations after updating own findings
@@ -240,9 +216,10 @@ class CityAgent(ABC):
                 }
                 self.findings_store[collab_key] = collab_output
                 await self.event_queue.put({"type": "finding", "data": collab_output})
-                storage.append_to_history(collab_output)  # Save collaboration to history
+                await storage.append_to_history(collab_output)
 
         except Exception as e:
+            error_title = f"{self.name} - Data Collection Error"
             error_output = {
                 "agent_name": self.name,
                 "department": self.department,
@@ -250,7 +227,7 @@ class CityAgent(ABC):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "officials": self.officials,
                 "raw_counts": {},
-                "issue_title": f"{self.name} - Data Collection Error",
+                "issue_title": error_title,
                 "severity": "low",
                 "summary": f"Error during data collection: {str(e)[:200]}",
                 "key_metrics": [],
@@ -259,7 +236,7 @@ class CityAgent(ABC):
                 "affected_neighborhoods": [],
                 "news_context": [],
             }
-            self.findings_store[self.name] = error_output
+            self.findings_store[f"{self.name}:{error_title}"] = error_output
             await self.event_queue.put({"type": "finding", "data": error_output})
 
     async def run_loop(self, interval: int = 60):

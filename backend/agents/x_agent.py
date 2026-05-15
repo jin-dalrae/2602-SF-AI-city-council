@@ -1,10 +1,7 @@
-import os
 import asyncio
-from datetime import datetime, timezone
-from composio import Composio
-from composio_langchain import LangchainProvider
 from .base import CityAgent
-from backend.services import llm
+from backend import deps
+
 
 class XAgent(CityAgent):
     """
@@ -15,7 +12,7 @@ class XAgent(CityAgent):
     department = "Technology & Innovation"
     icon = "x-logo"
     news_query = "San Francisco tech scene AI startups trends 2026"
-    
+
     officials = [
         {
             "name": "Mayor's Office of Economic & Workforce Development",
@@ -25,15 +22,17 @@ class XAgent(CityAgent):
         }
     ]
 
-    def __init__(self, findings_store: dict, event_queue: asyncio.Queue):
-        super().__init__(findings_store, event_queue)
-        api_key = os.getenv("COMPOSIO_API_KEY")
-        self.composio = Composio(api_key=api_key, provider=LangchainProvider())
+    @property
+    def composio(self):
+        return deps.composio()
 
     async def fetch_data(self) -> dict:
         """Fetch latest posts from X regarding SF tech scene."""
         await self._log_brain("🔍 Scouring X for SF Tech & AI ecosystem signals...", "Analyzing sentiment and emerging innovation patterns.")
-        
+
+        if self.composio is None:
+            return {"tweets": [], "_counts": {"tech_ecosystem_signals": 0}}
+
         try:
             # Common Twitter/X slugs in Composio
             slugs_to_try = [

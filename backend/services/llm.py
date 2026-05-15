@@ -5,10 +5,12 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+from backend.config import GEMINI_MODEL, EMBED_MODEL
+
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL = "gemini-2.0-flash"
+MODEL = GEMINI_MODEL
 
 SYSTEM_PROMPT = """You are an Expert Data Analyst and AI civic strategist for San Francisco citizens.
 You analyze city data and produce structured findings with high temporal awareness.
@@ -44,7 +46,7 @@ async def get_embedding(text: str) -> list[float]:
     try:
         response = await asyncio.to_thread(
             lambda: client.models.embed_content(
-                model="text-embedding-004",
+                model=EMBED_MODEL,
                 contents=text,
             )
         )
@@ -73,24 +75,19 @@ Analysis Task:
 {prompt}"""
 
     try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=full_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=custom_instruction,
-                temperature=0.3,
-            ),
+        response = await asyncio.to_thread(
+            lambda: client.models.generate_content(
+                model=MODEL,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=custom_instruction,
+                    temperature=0.3,
+                    response_mime_type="application/json",
+                ),
+            )
         )
-        text = response.text.strip()
-        # Strip markdown code fences if present
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-        if text.startswith("json"):
-            text = text[4:].strip()
-        return json.loads(text)
-    except (json.JSONDecodeError, Exception) as e:
+        return json.loads(response.text)
+    except Exception as e:
         err_str = str(e)[:150]
         is_key_issue = "leaked" in err_str.lower() or "permission" in err_str.lower() or "403" in err_str
         return {
@@ -106,19 +103,15 @@ Analysis Task:
 
 async def evolve_brain(agent_name: str, current_traits: list[str], finding: dict) -> dict:
     """
-    LLM evaluates the agent's research and decides if it should update its traits.
+    LLM evaluates the agent's research and decides whether to add a new trait.
     """
     schema = {
         "learning_message": "1-sentence message about what was learned",
         "new_trait": "Optional: new specific expertise title",
         "evolved_thought": "Short internal reflection",
-        "code_update": {
-            "method_name": "Optional: name of method to update",
-            "new_code": "Optional: The complete NEW python code for that method"
-        },
         "rationale": "Briefly explain the reason for this evolution."
     }
-    
+
     prompt = f"""You are the internal 'Brain Controller' for an AI agent named {agent_name}.
 Current traits: {current_traits}
 Latest finding: {json.dumps(finding)}

@@ -8,6 +8,34 @@ let isRunning = true;
 let currentPage = 1;
 const itemsPerPage = 9;
 
+// ── Auth ──
+const TOKEN_KEY = 'aiCityCouncil.apiToken';
+const getApiToken = () => localStorage.getItem(TOKEN_KEY) || '';
+const authHeaders = () => {
+    const tok = getApiToken();
+    return tok ? { Authorization: `Bearer ${tok}` } : {};
+};
+async function authedFetch(url, opts = {}) {
+    const headers = { ...(opts.headers || {}), ...authHeaders() };
+    const resp = await fetch(url, { ...opts, headers });
+    if (resp.status === 401 || resp.status === 403) {
+        const entered = window.prompt('API token required. Paste your API_AUTH_TOKEN:');
+        if (entered) {
+            localStorage.setItem(TOKEN_KEY, entered.trim());
+            return fetch(url, { ...opts, headers: { ...(opts.headers || {}), ...authHeaders() } });
+        }
+    }
+    return resp;
+}
+function setApiToken() {
+    const current = getApiToken();
+    const entered = window.prompt('Set API token (leave blank to clear):', current);
+    if (entered === null) return;
+    if (entered.trim() === '') localStorage.removeItem(TOKEN_KEY);
+    else localStorage.setItem(TOKEN_KEY, entered.trim());
+}
+window.setApiToken = setApiToken;
+
 // Helper to escape strings for HTML attributes
 const esc = (str) => {
     if (!str) return '';
@@ -41,13 +69,12 @@ const ICONS = {
 
 const SEVERITY_COLORS = {
     critical: { bg: 'bg-red-500/10', text: 'text-red-400', badge: 'bg-red-500', border: 'border-red-500' },
-    urgent: { bg: 'bg-red-500/10', text: 'text-red-400', badge: 'bg-red-500', border: 'border-red-500' },
     high: { bg: 'bg-orange-500/10', text: 'text-orange-400', badge: 'bg-orange-500', border: 'border-orange-500' },
-    moderate: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', badge: 'bg-yellow-500', border: 'border-yellow-500' },
     medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', badge: 'bg-yellow-500', border: 'border-yellow-500' },
     low: { bg: 'bg-green-500/10', text: 'text-green-400', badge: 'bg-green-500', border: 'border-green-500' },
-    improving: { bg: 'bg-blue-500/10', text: 'text-blue-400', badge: 'bg-blue-500', border: 'border-blue-500' },
 };
+const DEFAULT_SEVERITY = SEVERITY_COLORS.low;
+const severityColors = (s) => SEVERITY_COLORS[(s || '').toLowerCase()] || DEFAULT_SEVERITY;
 
 // ── SSE Connection ──
 function connectSSE() {
@@ -84,7 +111,7 @@ async function startAgents() {
     const btn = document.getElementById('btn-start');
     btn.disabled = true;
     try {
-        const resp = await fetch('/api/agents/start', { method: 'POST' });
+        const resp = await authedFetch('/api/agents/start', { method: 'POST' });
         const data = await resp.json();
         // Even if success is false, if it's "Already running", we should reflect that
         if (data.success || data.message === "Already running") {
@@ -105,7 +132,7 @@ async function stopAgents() {
     const btn = document.getElementById('btn-stop');
     btn.disabled = true;
     try {
-        const resp = await fetch('/api/agents/stop', { method: 'POST' });
+        const resp = await authedFetch('/api/agents/stop', { method: 'POST' });
         const data = await resp.json();
         if (data.success || data.message === "Not running") {
             isRunning = false;
@@ -324,7 +351,7 @@ function showBrainMessage(data) {
 
 function renderCard(f, key) {
     const isCollab = f.agent_name.startsWith('Collaboration:');
-    const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
+    const sev = severityColors(f.severity);
     const icon = ICONS[f.icon] || `<span class="text-lg">${f.icon || '📊'}</span>`;
     const cardId = f.agent_name.replace(/[^a-zA-Z0-9]/g, '_');
 
@@ -460,7 +487,7 @@ function openDetailModal(key) {
 
     selectedFinding = f;
     const modal = document.getElementById('detail-modal');
-    const sev = SEVERITY_COLORS[f.severity] || SEVERITY_COLORS.low;
+    const sev = severityColors(f.severity);
     const icon = ICONS[f.icon] || `<span class="text-2xl">${sanitize(f.icon) || '📊'}</span>`;
 
     // Build detailed content
@@ -852,7 +879,7 @@ document.getElementById('email-form').addEventListener('submit', async (e) => {
     btn.disabled = true;
 
     try {
-        const resp = await fetch('/api/email/draft', {
+        const resp = await authedFetch('/api/email/draft', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -902,7 +929,7 @@ document.getElementById('btn-send-email')?.addEventListener('click', async (e) =
     try {
         const recipients = (currentDraft.to || []).join(', ');
 
-        const resp = await fetch('/api/email/send', {
+        const resp = await authedFetch('/api/email/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

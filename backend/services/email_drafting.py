@@ -57,27 +57,21 @@ Return JSON with these fields:
 """
 
     try:
-        from google import genai
         from google.genai import types
+        from backend.services.llm import client, MODEL
 
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction="You are an expert civic communications assistant. Always respond with valid JSON matching the requested structure.",
-                temperature=0.4,
-            ),
+        response = await asyncio.to_thread(
+            lambda: client.models.generate_content(
+                model=MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction="You are an expert civic communications assistant. Always respond with valid JSON matching the requested structure.",
+                    temperature=0.4,
+                    response_mime_type="application/json",
+                ),
+            )
         )
-        text = response.text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1]
-        if text.endswith("```"):
-            text = text.rsplit("```", 1)[0]
-        if text.startswith("json"):
-            text = text[4:].strip()
-        
-        raw_result = json.loads(text)
+        raw_result = json.loads(response.text)
         
         # Format as per PRD Section 4.4
         data_sources = []

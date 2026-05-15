@@ -1,10 +1,7 @@
-import os
 import asyncio
-from datetime import datetime, timezone
-from composio import Composio
-from composio_langchain import LangchainProvider
 from .base import CityAgent
-from backend.services import llm
+from backend import deps
+
 
 class RedditAgent(CityAgent):
     """
@@ -15,7 +12,7 @@ class RedditAgent(CityAgent):
     department = "Community Relations"
     icon = "reddit"
     news_query = "San Francisco reddit community issues 2026"
-    
+
     officials = [
         {
             "name": "SF Board of Supervisors",
@@ -25,16 +22,17 @@ class RedditAgent(CityAgent):
         }
     ]
 
-    def __init__(self, findings_store: dict, event_queue: asyncio.Queue):
-        super().__init__(findings_store, event_queue)
-        api_key = os.getenv("COMPOSIO_API_KEY")
-        # Initialize Composio specifically for Reddit reading
-        self.composio = Composio(api_key=api_key, provider=LangchainProvider())
+    @property
+    def composio(self):
+        return deps.composio()
 
     async def fetch_data(self) -> dict:
         """Fetch latest posts from r/sanfrancisco using Composio."""
         await self._log_brain("🕵️ Scanning r/sanfrancisco for emerging civic alerts...", "Looking for untracked incidents and public sentiment shifts.")
-        
+
+        if self.composio is None:
+            return {"posts": [], "_counts": {"community_reports": 0}}
+
         try:
             # Common Reddit slugs in Composio
             slugs_to_try = [

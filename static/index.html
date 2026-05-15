@@ -117,6 +117,10 @@
                     title="Refresh Historical Data">
                     🔄
                 </button>
+                <button onclick="setApiToken()" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"
+                    title="Set API token (required for start/stop/email)">
+                    🔑
+                </button>
                 <div id="connection-status" class="flex items-center gap-2 text-sm text-gray-400">
                     <span class="w-2 h-2 rounded-full bg-yellow-500 pulse-dot"></span>
                     Connecting...
@@ -165,6 +169,15 @@
             </div>
         </div>
     </main>
+
+    <footer class="max-w-[1600px] mx-auto px-4 py-6 mt-4 border-t border-gray-800 text-xs text-gray-500 flex flex-wrap items-center justify-between gap-2">
+        <span>AI City Council — civic intelligence for SF residents.</span>
+        <span class="space-x-3">
+            <a href="/terms" class="hover:text-gray-300">Terms of Service</a>
+            <a href="/privacy" class="hover:text-gray-300">Privacy Policy</a>
+            <a href="https://data.sfgov.org" class="hover:text-gray-300" target="_blank" rel="noopener">SF Open Data</a>
+        </span>
+    </footer>
 
     <!-- Email Modal -->
     <div id="email-modal"

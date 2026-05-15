@@ -1,105 +1,138 @@
-# AI City Council: The Autonomous Engine for Civic Change 🏛️✨
+# AI City Council
 
-![AI City Council Hero Banner](ai_city_council_hero_vision_1770422532607.png)
+![AI City Council Hero](docs/hero.png)
 
-### *Democratizing Civic Power through Agentic Intelligence.*
-
-**AI City Council** is a real-time, multi-agent intelligence platform designed to bridge the gap between San Francisco’s vast Open Data repositories and actionable civic advocacy. For the first time, specialized AI agents act as full-time civic analysts, monitoring government performance, identifying systemic failures, and drafting evidence-based policy recommendations—automatically.
+A multi-agent civic intelligence platform for San Francisco. Specialized AI agents continuously monitor SF Open Data, news, and community signals; surface high-impact issues; and help residents take action through evidence-backed emails to city officials.
 
 ---
 
-## 🌩️ The Problem: The Data Graveyard
-San Francisco publishes over **500 datasets** across dozens of departments. However, for most citizens and NGOs, this data is:
-- **Inaccessible**: Buried in complex Socrata APIs and spreadsheets.
-- **Reactive**: Issues are only noticed after they become headlines.
-- **Disconnected**: SFPD data doesn't "talk" to Public Works data, hiding cross-departmental solutions.
+## What it does
 
-## 🚀 The Solution: Autonomous Advocacy
-We’ve built a living "Digital Brain" for the city. AI City Council doesn't just display charts; it **understands** the heartbeat of San Francisco.
+- **9 specialized agents** run on a loop, each owning a slice of city operations:
+  - Safety Commissioner (SFPD incidents)
+  - Transit Authority (SFMTA citations)
+  - Infrastructure Foreman (311 / Public Works)
+  - City Comptroller (budget)
+  - Planning Commissioner (permits)
+  - Civic Correspondent (real-time news via You.com)
+  - Reddit Community Watch (`r/sanfrancisco`)
+  - SF Tech Scouter (X/Twitter signals)
+  - Policy Coordinator (meta-agent — merges related findings into systemic briefings)
 
-### 🧠 The Intelligence Layer
-- **Marathon Mode**: Agents run in continuous 60-second loops, processing thousands of data points in real-time.
-- **Recursive Evolution**: Our agents perform **Self-Directed Code Evolution**. If an agent identifies a superior analytical pattern or prompt strategy, it triggers a recursive update to its own `.py` source code, physically overwriting its logic to become more efficient.
-- **Consensus-Driven Analysis**: Distributed agents collaborate to identify high-impact issues requiring multi-departmental coordination.
-- **Intelligent Issue Merging**: Instead of duplicate alerts, agents update existing "Master Cards" and append new evidence to a shared issue timeline.
+- **Live SSE dashboard** at `/` shows findings as they land, with severity grading, evidence, and a brain-feed of agent reasoning.
 
-## 🏛️ The Council Members (The Agents)
-
-1.  **Safety Commissioner (`SFPDAgent`)**: Monitors SFPD incident data and crime trends to identify public safety hot-spots.
-2.  **Transit Authority (`SFMTAAgent`)**: Analyzes Muni/BART performance, delays, and transit equity across neighborhoods.
-3.  **Infrastructure & Streets (`PublicWorksAgent`)**: Tracks 311 requests, street repairs, and pothole density.
-4.  **Fiscal Oversight (`BudgetAgent`)**: Audits city spending, revenue spikes, and identifies funding reallocation opportunities.
-5.  **Urban Development (`PlanningAgent`)**: Monitors building permits, housing projects, and zoning changes.
-6.  **Civic Correspondent (`SFNewsAgent`)**: Aggregates real-time news from You.com to provide situational context to all other agents.
-7.  **Community Watch (`RedditAgent`)**: Scans `r/sanfrancisco` for "ground-truth" community complaints and emerging local incidents.
-8.  **SF Tech Scouter (`XAgent`)**: Tracks the tech & AI ecosystem on X (Twitter), monitoring startup trends and industry sentiment.
-9.  **Policy Coordinator (`PolicyCoordinator`)**: The Meta-Agent that merges similar issues from across the council into unified, systemic "City Briefings."
+- **Civic action loop**:
+  - High/critical severity findings can auto-open GitHub issues for tracking (via Composio, with per-issue cooldown).
+  - One-click email drafts to the relevant SF official, citing the data, ready to send through Composio Gmail.
 
 ---
 
-## 🛠️ Core Capabilities
+## Architecture
 
-### 🚆 Autonomous Monitoring (Marathon Mode)
-Specialized agents monitor their domains around the clock. Whether it's a sudden spike in 311 requests or a muni service failure, the council detects it instantly.
+```
+backend/
+├── main.py              # FastAPI app + lifespan
+├── config.py            # env-driven config (models, intervals, severity vocab)
+├── deps.py              # singleton clients (Socrata, Composio)
+├── auth.py              # bearer-token dependency for mutating routes
+├── state.py             # shared in-process state (findings, queues, tasks)
+├── api/
+│   ├── agents.py        # /api/agents/* (start, stop, status)
+│   ├── findings.py      # /api/findings (SSE) + /api/findings/history
+│   └── email.py         # /api/email/{draft,send}
+├── events/
+│   └── broadcaster.py   # SSE fan-out from a shared event queue
+├── agents/
+│   ├── base.py          # CityAgent: run_loop, analyze, memory, collaboration
+│   ├── socrata_agent.py # config-driven Socrata agent factory
+│   ├── definitions.py   # SFPD/SFMTA/PublicWorks/Budget/Planning specs
+│   ├── reddit.py
+│   ├── x_agent.py
+│   ├── sf_news.py
+│   └── coordinator.py
+├── services/
+│   ├── llm.py           # Gemini wrapper (analysis, embeddings, evolve)
+│   ├── socrata.py       # SF Open Data client
+│   ├── you_api.py       # You.com search
+│   ├── composio_tools.py# civic action triggers (GitHub issues)
+│   ├── email_drafting.py# email draft + send
+│   └── storage.py       # JSONL history + RAM-cached vector memory
+└── data/                # runtime persistence (gitignored)
 
-### 🏛️ Cross-Agent Collaboration
-Our agents "sit" at a virtual council table. The **Budget Agent** notices a funding surplus while the **Public Works Agent** identifies a street maintenance backlog—together, they draft a proposal for immediate reallocation.
+static/                  # vanilla JS dashboard (SSE)
+docs/                    # PRD, implementation notes, hero image
+scripts/                 # smoke tests for You.com + Composio
+tests/                   # pytest suite (storage + severity contract)
+```
 
-### 📝 Verified Civic Action (via Composio)
-We've closed the loop between *discovery* and *action*. 
-- **Automated Civic Tickets**: High-severity issues are automatically converted into "Civic Tickets" (GitHub Issues) for tracking.
-- **AI-Drafted Advocacy**: With a single click, NGO stakeholders can generate professional, data-backed emails to city officials, complete with citations and official contact details.
-
-### 🔄 Intelligent Merging & Living Timelines
-The dashboard avoids "Update Fatigue" by grouping similar discoveries:
-- **Master Issue Continuity**: When new data confirms an existing problem, agents "append" to the former theme rather than creating a new card.
-- **Living Timelines**: Every card features a **🔄 Issue Timeline**, showing every refinement, severity shift, and new evidence added by the Council over time.
-
-### 🧬 Self-Evolving Intelligence (Recursive Learning)
-Unlike static bots, our agents experience **behavioral and structural evolution**:
-- **Capability Growth**: Agents evolve new, hyper-specific traits (e.g. *Safety Commissioner* → *Bicycle Policy Expert*).
-- **Self-Modifying Source**: When an agent "learns" a better way to think, it modifies its own Python class methods (`.py`) in real-time, which is then reflected in the **Agent Brain Feed**.
-- **Episodic Memory**: Agents use a vector store to recall past findings, ensuring that "new" reports are contextualized against years of historical performance.
+The agent loop is `fetch → analyze → action → evolve → memorize → broadcast`, with all heavy I/O wrapped in `asyncio.to_thread` so the FastAPI event loop never blocks.
 
 ---
 
-## ⚡ Tech Stack: The Engine Under the Hood
+## Setup
 
-- **Core Intelligence**: [Gemini 2.0 Flash](https://aistudio.google.com/) - Leveraging native reasoning for multi-agent coordination.
-- **Action Layer**: [Composio](https://composio.dev/) - Enabling agents to interact with the real world (GitHub, Email, Slack).
-- **Contextual Awareness**: [You.com API](https://api.you.com/) - Providing agents with real-time news and policy precedents.
-- **Foundation**: Python (FastAPI), React, Tailwind CSS, SSE (Server-Sent Events).
+### 1. Install
 
----
-
-## 🏗️ Getting Started
-
-### 1. Initialize the Environment
-Clone the repository and install the analytical dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Your Keys
-Add your credentials to the `.env` file:
+### 2. Configure environment
+
+Create `.env` (gitignored):
+
 ```env
-GEMINI_API_KEY=your_key
-YOU_COM_API_KEY=your_key
-COMPOSIO_API_KEY=your_key
+GEMINI_API_KEY=your_key            # required
+YOU_COM_API_KEY=your_key           # required for news + verification
+COMPOSIO_API_KEY=your_key          # optional (enables Reddit, X, GitHub, Gmail)
+API_AUTH_TOKEN=pick_a_long_random_string   # required to call mutating routes
+
+# Optional
+GEMINI_MODEL=gemini-2.0-flash
+AGENT_LOOP_INTERVAL=60
+NEWS_LOOP_INTERVAL=90
+CIVIC_ACTION_COOLDOWN_SECONDS=3600
 ```
 
-### 3. Launch the Council
-Start the multi-agent backend and real-time dashboard:
+`API_AUTH_TOKEN` protects `/api/agents/{start,stop}` and `/api/email/{draft,send}`. The read-only SSE stream and history endpoints stay public.
+
+### 3. Run
+
 ```bash
 python -m uvicorn backend.main:app --reload
 ```
-Navigate to `http://localhost:8000` to witness the city's data come to life.
+
+Open `http://localhost:8000`. Click the 🔑 in the header and paste your `API_AUTH_TOKEN` so the dashboard can authenticate mutating actions.
+
+### 4. Tests
+
+```bash
+pytest tests/
+```
 
 ---
 
-## 🔮 The Roadmap: Future of the City
-- **Predictive Urban Modeling**: Moving from real-time detection to proactive prevention.
-- **Citizen Feedback Loops**: Allowing residents to "nudge" agents toward specific neighborhood issues.
-- **Multi-City Scaling**: A portable civic brain that can be deployed to any city with an Open Data portal.
+## Tech stack
 
-*Built with ❤️ for San Francisco. Let's make data-driven advocacy the default.*
+- **Core intelligence**: Gemini 2.0 Flash
+- **Action layer**: Composio (GitHub, Gmail)
+- **Contextual awareness**: You.com Search API
+- **Foundation**: Python (FastAPI), vanilla JS + Tailwind, SSE
+
+---
+
+## Operational notes
+
+- All findings are persisted in `backend/data/`. `findings.json` is the current snapshot; `findings_history.jsonl` is append-only. Memory embeddings live in `agent_memory.jsonl` and are loaded into RAM at startup.
+- High/critical findings trigger GitHub issues with a 1-hour cooldown per `(agent, issue_title)` to avoid duplicates.
+- The Policy Coordinator runs as a regular agent in the loop — it reads sibling findings rather than fetching its own data.
+
+---
+
+## Legal
+
+[Terms of Service](static/terms.html) · [Privacy Policy](static/privacy.html)
+
+---
+
+*Built for San Francisco residents. Open data, open advocacy.*
