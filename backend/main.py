@@ -73,6 +73,11 @@ app.include_router(email_router)
 
 
 @app.get("/")
+async def serve_landing():
+    return FileResponse(str(static_dir / "landing.html"))
+
+
+@app.get("/dashboard")
 async def serve_dashboard():
     return FileResponse(str(static_dir / "index.html"))
 

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AICC · the city's heartbeat in real time</title>
+    <meta name="description" content="Nine AI agents continuously monitor San Francisco's open data, news, and community signals — surfacing civic issues as they emerge.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #07090d;
+            --bg-2: #0d1117;
+            --bg-3: #161b22;
+            --border: #1f242c;
+            --border-2: #2a313b;
+            --border-3: #3a424f;
+            --text: #e6edf3;
+            --text-2: #9ca3af;
+            --text-3: #6b7280;
+            --text-4: #4b5563;
+            --accent: #84cc16;
+            --accent-2: #a3e635;
+            --sev-critical: #ef4444;
+            --sev-high: #f97316;
+            --sev-medium: #eab308;
+            --sev-low: #22c55e;
+        }
+
+        * { box-sizing: border-box; }
+        html, body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; }
+        .label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--text-3);
+        }
+        a { color: var(--accent-2); text-decoration: none; }
+        a:hover { color: var(--accent); }
+
+        /* Subtle scanline texture in the background */
+        body::before {
+            content: ""; position: fixed; inset: 0; pointer-events: none;
+            background:
+                radial-gradient(900px 500px at 80% -10%, rgba(132, 204, 22, 0.06), transparent 60%),
+                radial-gradient(700px 400px at -10% 80%, rgba(132, 204, 22, 0.04), transparent 60%);
+            z-index: 0;
+        }
+        main, header, footer { position: relative; z-index: 1; }
+
+        /* Header */
+        .nav {
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            background: rgba(7, 9, 13, 0.65);
+            backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 20;
+        }
+        .nav-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .brand-mark { font-family: 'JetBrains Mono', monospace; font-weight: 700; letter-spacing: 0.04em; color: var(--text); }
+        .brand-sub { padding-left: 14px; border-left: 1px solid var(--border-2); }
+        .nav-status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 14px; }
+        .live-dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); box-shadow: 0 0 8px var(--accent);
+            margin-right: 6px; animation: heartbeat 1.6s ease-in-out infinite;
+        }
+        .live-dot.offline { background: var(--text-4); box-shadow: none; animation: none; }
+        @keyframes heartbeat {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; border-radius: 4px;
+            font-size: 13px; font-weight: 500;
+            border: 1px solid var(--border-2);
+            background: var(--bg-2); color: var(--text);
+            transition: all 0.15s; cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            text-decoration: none;
+        }
+        .btn:hover { border-color: var(--border-3); background: var(--bg-3); }
+        .btn-primary {
+            background: var(--accent); color: #07090d; border-color: var(--accent);
+            font-weight: 600;
+        }
+        .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: #07090d; }
+        .btn-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.02em; }
+
+        /* Hero */
+        .hero { padding: 80px 24px 56px; }
+        .hero-inner { max-width: 1080px; margin: 0 auto; }
+        .prompt {
+            font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            color: var(--text-3); margin-bottom: 28px;
+        }
+        .prompt .caret { color: var(--accent-2); }
+        .prompt .cmd { color: var(--text); }
+        .prompt .arg { color: var(--accent-2); }
+        .prompt .cursor {
+            display: inline-block; width: 8px; height: 16px;
+            background: var(--accent); margin-left: 4px; vertical-align: middle;
+            animation: blink 1s steps(2, end) infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .hero h1 {
+            font-size: clamp(40px, 6vw, 76px);
+            font-weight: 700; line-height: 1.05;
+            letter-spacing: -0.025em;
+            margin: 0 0 24px;
+            color: var(--text);
+        }
+        .hero h1 .accent { color: var(--accent-2); }
+        .hero p.lede {
+            font-size: 18px; max-width: 660px;
+            color: var(--text-2);
+            margin: 0 0 36px;
+        }
+        .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .hero-cta .btn { padding: 11px 18px; font-size: 14px; }
+
+        /* Live strip — sits right under the hero */
+        .strip {
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-2);
+            padding: 16px 24px;
+        }
+        .strip-inner {
+            max-width: 1080px; margin: 0 auto;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 24px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .strip-stat .k { font-size: 10px; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.1em; }
+        .strip-stat .v { font-size: 18px; font-weight: 600; color: var(--text); margin-top: 2px; }
+        .strip-stat .v.crit { color: var(--sev-critical); }
+        .strip-stat .v.high { color: var(--sev-high); }
+        .strip-stat .v.med  { color: var(--sev-medium); }
+        .strip-stat .v.low  { color: var(--sev-low); }
+        .strip-stat .v.acc  { color: var(--accent-2); }
+
+        /* Section scaffolding */
+        section.block { padding: 80px 24px; border-bottom: 1px solid var(--border); }
+        .block-inner { max-width: 1080px; margin: 0 auto; }
+        .block h2 {
+            font-size: 28px; font-weight: 600;
+            letter-spacing: -0.01em; margin: 0 0 8px;
+            color: var(--text);
+        }
+        .block .sub { color: var(--text-3); margin: 0 0 36px; max-width: 560px; }
+        .block .kicker {
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            color: var(--accent-2); letter-spacing: 0.1em; text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        /* Council preview */
+        .council-list {
+            display: grid; gap: 1px;
+            background: var(--border); border: 1px solid var(--border);
+            border-radius: 6px; overflow: hidden;
+        }
+        .council-row {
+            display: grid; grid-template-columns: 48px 180px 1fr 96px;
+            gap: 16px; padding: 14px 18px; align-items: center;
+            background: var(--bg-2); transition: background 0.15s;
+            cursor: pointer;
+        }
+        .council-row:hover { background: var(--bg-3); }
+        .council-row .agent { font-size: 13px; color: var(--text); font-weight: 500; }
+        .council-row .agent-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+        .council-row .issue { font-size: 14px; color: var(--text); }
+        .council-row .issue-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+        .council-row .age { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); text-align: right; }
+        .sev-bar { display: inline-flex; gap: 2px; align-items: center; }
+        .sev-bar > span { display: inline-block; width: 8px; height: 18px; background: var(--border-2); border-radius: 1px; }
+        .sev-bar.critical > span:nth-child(-n+3) { background: var(--sev-critical); box-shadow: 0 0 6px color-mix(in srgb, var(--sev-critical) 50%, transparent); }
+        .sev-bar.high > span:nth-child(-n+2) { background: var(--sev-high); }
+        .sev-bar.medium > span:nth-child(-n+1) { background: var(--sev-medium); }
+        .sev-bar.low > span:nth-child(-n+1) { background: var(--sev-low); opacity: 0.6; }
+
+        /* How it works — three steps */
+        .steps {
+            display: grid; gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .step {
+            border: 1px solid var(--border); border-radius: 6px;
+            background: var(--bg-2); padding: 24px;
+        }
+        .step .num {
+            font-family: 'JetBrains Mono', monospace; font-size: 14px;
+            color: var(--accent-2); margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .step .num::after {
+            content: ""; flex: 1; height: 1px; background: var(--border);
+        }
+        .step h3 { font-size: 17px; font-weight: 600; margin: 0 0 8px; color: var(--text); }
+        .step p { font-size: 14px; color: var(--text-2); margin: 0; }
+
+        /* Agent roster (9 cells) */
+        .agents-grid {
+            display: grid; gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        }
+        .agent-card {
+            border: 1px solid var(--border); border-radius: 6px;
+            background: var(--bg-2); padding: 16px;
+            display: flex; flex-direction: column; gap: 6px;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .agent-card:hover { border-color: var(--border-3); background: var(--bg-3); }
+        .agent-card .role { font-size: 14px; font-weight: 600; color: var(--text); }
+        .agent-card .name { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-2); letter-spacing: 0.04em; }
+        .agent-card .src { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+
+        /* Stack chips */
+        .stack-row {
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .chip {
+            font-family: 'JetBrains Mono', monospace; font-size: 12px;
+            padding: 6px 12px; border-radius: 4px;
+            background: var(--bg-2); border: 1px solid var(--border-2);
+            color: var(--text-2);
+        }
+        .chip .v { color: var(--text); }
+
+        /* Final CTA block */
+        .endcap {
+            padding: 96px 24px;
+            text-align: center;
+        }
+        .endcap h2 {
+            font-size: clamp(28px, 4vw, 44px); font-weight: 700;
+            letter-spacing: -0.02em; margin: 0 0 16px;
+        }
+        .endcap p { color: var(--text-2); max-width: 520px; margin: 0 auto 28px; }
+        .endcap .terminal {
+            display: inline-block; font-family: 'JetBrains Mono', monospace;
+            font-size: 13px; color: var(--text-3); margin-top: 36px;
+        }
+        .endcap .terminal .acc { color: var(--accent-2); }
+
+        /* Footer */
+        .footer {
+            border-top: 1px solid var(--border);
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            color: var(--text-3);
+        }
+        .footer-inner { max-width: 1080px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+        .footer a { color: var(--text-3); }
+        .footer a:hover { color: var(--accent-2); }
+
+        /* Loading state */
+        .ph {
+            background: linear-gradient(90deg, var(--bg-2) 0%, var(--bg-3) 50%, var(--bg-2) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.6s infinite;
+            border-radius: 3px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @media (max-width: 700px) {
+            .council-row { grid-template-columns: 36px 1fr 72px; }
+            .council-row .agent-col { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="nav">
+        <div class="nav-inner">
+            <div class="brand">
+                <span class="brand-mark">AICC</span>
+                <span class="brand-sub label">SF · Civic Operations</span>
+            </div>
+            <div class="nav-status">
+                <span><span id="nav-dot" class="live-dot offline"></span><span id="nav-label">CONNECTING…</span></span>
+                <span class="hidden-narrow"><span id="nav-agents">—</span> agents</span>
+            </div>
+            <a href="/dashboard" class="btn btn-mono">Dashboard →</a>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero -->
+        <section class="hero">
+            <div class="hero-inner">
+                <div class="prompt">
+                    <span class="caret">$</span> <span class="cmd">aicc</span> <span class="arg">--watch</span> sf-civic<span class="cursor"></span>
+                </div>
+                <h1>The city's heartbeat,<br><span class="accent">in real time.</span></h1>
+                <p class="lede">Nine AI agents continuously monitor SF Open Data, news, and community signals — surfacing civic issues as they emerge and making it one click to write to the people who can fix them.</p>
+                <div class="hero-cta">
+                    <a href="/dashboard" class="btn btn-primary">Enter the dashboard →</a>
+                    <a href="https://github.com/jin-dalrae/2602-SF-AI-city-council" target="_blank" rel="noopener" class="btn btn-mono">Source ↗</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live strip -->
+        <div class="strip">
+            <div class="strip-inner">
+                <div class="strip-stat">
+                    <div class="k">Status</div>
+                    <div class="v acc" id="stat-status">—</div>
+                </div>
+                <div class="strip-stat">
+                    <div class="k">Agents online</div>
+                    <div class="v" id="stat-agents">—</div>
+                </div>
+                <div class="strip-stat">
+                    <div class="k">Active findings</div>
+                    <div class="v" id="stat-findings">—</div>
+                </div>
+                <div class="strip-stat">
+                    <div class="k">Critical</div>
+                    <div class="v crit" id="stat-critical">—</div>
+                </div>
+                <div class="strip-stat">
+                    <div class="k">High</div>
+                    <div class="v high" id="stat-high">—</div>
+                </div>
+                <div class="strip-stat">
+                    <div class="k">Lifetime findings</div>
+                    <div class="v" id="stat-history">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Council preview -->
+        <section class="block">
+            <div class="block-inner">
+                <div class="kicker">› On the council table right now</div>
+                <h2>What the city is dealing with this hour.</h2>
+                <p class="sub">A live snapshot of the highest-severity findings the agents are currently tracking. Open one to see the evidence and the recommended response.</p>
+                <div class="council-list" id="council-list">
+                    <!-- placeholder rows -->
+                    <div class="council-row">
+                        <div class="ph" style="height: 16px; width: 36px"></div>
+                        <div><div class="ph" style="height: 12px; width: 140px"></div><div class="ph" style="height: 10px; width: 80px; margin-top: 6px"></div></div>
+                        <div><div class="ph" style="height: 12px; width: 70%"></div><div class="ph" style="height: 10px; width: 50%; margin-top: 6px"></div></div>
+                        <div class="ph" style="height: 12px; width: 40px; margin-left: auto"></div>
+                    </div>
+                    <div class="council-row">
+                        <div class="ph" style="height: 16px; width: 36px"></div>
+                        <div><div class="ph" style="height: 12px; width: 140px"></div><div class="ph" style="height: 10px; width: 80px; margin-top: 6px"></div></div>
+                        <div><div class="ph" style="height: 12px; width: 65%"></div><div class="ph" style="height: 10px; width: 45%; margin-top: 6px"></div></div>
+                        <div class="ph" style="height: 12px; width: 40px; margin-left: auto"></div>
+                    </div>
+                    <div class="council-row">
+                        <div class="ph" style="height: 16px; width: 36px"></div>
+                        <div><div class="ph" style="height: 12px; width: 140px"></div><div class="ph" style="height: 10px; width: 80px; margin-top: 6px"></div></div>
+                        <div><div class="ph" style="height: 12px; width: 72%"></div><div class="ph" style="height: 10px; width: 40%; margin-top: 6px"></div></div>
+                        <div class="ph" style="height: 12px; width: 40px; margin-left: auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How it works -->
+        <section class="block">
+            <div class="block-inner">
+                <div class="kicker">› How it works</div>
+                <h2>Three steps, every 60 seconds.</h2>
+                <p class="sub">Each agent runs an independent loop: fetch the latest data, ask Gemini to find the story, and route action where it matters.</p>
+                <div class="steps">
+                    <div class="step">
+                        <div class="num">01 — MONITOR</div>
+                        <h3>Always on, never blinking.</h3>
+                        <p>Agents pull SF Open Data, You.com news, Reddit, and X every minute. Trends, backlogs, and headlines get continuous coverage so no slow-burn issue gets missed.</p>
+                    </div>
+                    <div class="step">
+                        <div class="num">02 — ANALYZE</div>
+                        <h3>Connect dots, not just list rows.</h3>
+                        <p>Gemini interprets each agent's snapshot against past memory, surfaces the underlying story, and rates severity. A coordinator merges related signals across departments.</p>
+                    </div>
+                    <div class="step">
+                        <div class="num">03 — ACT</div>
+                        <h3>One click to a real email.</h3>
+                        <p>High-severity findings auto-open GitHub tickets for tracking. For citizens: draft a data-cited email to the right SF official and send it via Gmail, all from the finding.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Agent roster -->
+        <section class="block">
+            <div class="block-inner">
+                <div class="kicker">› Council members</div>
+                <h2>Nine watchers.</h2>
+                <p class="sub">Each agent owns a slice of city operations and a panel of public officials it knows to contact.</p>
+                <div class="agents-grid">
+                    <div class="agent-card">
+                        <span class="name">SAFETY COMMISSIONER</span>
+                        <span class="role">SFPD incidents</span>
+                        <span class="src">Crime trends, district hot-spots, category shifts</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">TRANSIT AUTHORITY</span>
+                        <span class="role">SFMTA citations</span>
+                        <span class="src">Enforcement trajectory, equity signals</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">INFRASTRUCTURE FOREMAN</span>
+                        <span class="role">311 / Public Works</span>
+                        <span class="src">Service requests, repair backlogs</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">CITY COMPTROLLER</span>
+                        <span class="role">Budget</span>
+                        <span class="src">Spending, revenue, reallocation candidates</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">PLANNING COMMISSIONER</span>
+                        <span class="role">Permits</span>
+                        <span class="src">Approval bottlenecks, housing pipeline</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">CIVIC CORRESPONDENT</span>
+                        <span class="role">News (You.com)</span>
+                        <span class="src">Real-time SF news context for every agent</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">COMMUNITY WATCH</span>
+                        <span class="role">r/sanfrancisco</span>
+                        <span class="src">Ground-truth resident reports</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">SF TECH SCOUTER</span>
+                        <span class="role">X / startups</span>
+                        <span class="src">Ecosystem sentiment, displacement risk</span>
+                    </div>
+                    <div class="agent-card">
+                        <span class="name">POLICY COORDINATOR</span>
+                        <span class="role">Meta-agent</span>
+                        <span class="src">Merges signals into city-wide briefings</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tech stack -->
+        <section class="block">
+            <div class="block-inner">
+                <div class="kicker">› Built on</div>
+                <h2>Open data, capable models, real plumbing.</h2>
+                <div class="stack-row" style="margin-top: 18px">
+                    <span class="chip"><span class="v">SF Open Data</span> · 500+ datasets</span>
+                    <span class="chip"><span class="v">Gemini 2.0 Flash</span> · analysis &amp; embeddings</span>
+                    <span class="chip"><span class="v">You.com</span> · real-time search</span>
+                    <span class="chip"><span class="v">Composio</span> · GitHub + Gmail actions</span>
+                    <span class="chip"><span class="v">FastAPI</span> · SSE backbone</span>
+                    <span class="chip"><span class="v">Python 3.11</span></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Endcap -->
+        <section class="endcap">
+            <div class="block-inner">
+                <h2>Open the dashboard.<br>Watch the city.</h2>
+                <p>The agents are running right now. Step in.</p>
+                <a href="/dashboard" class="btn btn-primary" style="padding: 13px 22px; font-size: 15px">Enter the dashboard →</a>
+                <div class="terminal">
+                    <span class="acc">$</span> aicc --connect <span class="acc">/dashboard</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <span>AICC · civic operations · SF</span>
+            <span>
+                <a href="/dashboard">DASHBOARD</a> ·
+                <a href="/terms">TERMS</a> ·
+                <a href="/privacy">PRIVACY</a> ·
+                <a href="https://github.com/jin-dalrae/2602-SF-AI-city-council" target="_blank" rel="noopener">SOURCE ↗</a>
+            </span>
+        </div>
+    </footer>
+
+    <script>
+    // ── Live data pulls (no SSE on landing; one-shot snapshot) ──
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => (n == null ? '—' : String(n));
+
+    function timeAgo(ts) {
+        if (!ts) return '—';
+        const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+        if (diff < 60) return `${diff}s`;
+        if (diff < 3600) return `${Math.floor(diff/60)}m`;
+        if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+        return `${Math.floor(diff/86400)}d`;
+    }
+
+    function escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function sevBar(s) {
+        const cls = ['critical', 'high', 'medium', 'low'].includes((s || '').toLowerCase()) ? s.toLowerCase() : 'low';
+        return `<span class="sev-bar ${cls}"><span></span><span></span><span></span></span>`;
+    }
+
+    async function loadStatus() {
+        try {
+            const resp = await fetch('/api/agents/status');
+            const data = await resp.json();
+            const agents = data.agents || {};
+            const running = Object.values(agents).filter(a => (a.status || '').includes('RUNNING')).length;
+            const total = Object.keys(agents).length;
+
+            if (data.is_running) {
+                $('nav-dot').classList.remove('offline');
+                $('nav-label').textContent = 'LIVE';
+                $('stat-status').textContent = 'LIVE';
+            } else {
+                $('nav-dot').classList.add('offline');
+                $('nav-label').textContent = 'STANDBY';
+                $('stat-status').textContent = 'STANDBY';
+                $('stat-status').classList.remove('acc');
+            }
+            $('nav-agents').textContent = `${running}/${total}`;
+            $('stat-agents').textContent = `${running}/${total}`;
+            $('stat-findings').textContent = fmt(data.total_findings);
+            $('stat-history').textContent = fmt(data.historical_count);
+        } catch (err) {
+            $('nav-label').textContent = 'OFFLINE';
+            console.error('status err', err);
+        }
+    }
+
+    async function loadCouncil() {
+        try {
+            const resp = await fetch('/api/findings/history?limit=300');
+            const data = await resp.json();
+            const history = data.history || [];
+
+            // Dedupe by {agent}:{title}, keep most recent.
+            const byKey = new Map();
+            for (const f of history) {
+                const key = `${f.agent_name}:${f.issue_title || ''}`;
+                const prev = byKey.get(key);
+                if (!prev || new Date(f.timestamp || 0) > new Date(prev.timestamp || 0)) {
+                    byKey.set(key, f);
+                }
+            }
+            const dedup = Array.from(byKey.values()).filter(f =>
+                !(f.agent_name || '').startsWith('Collaboration:')
+            );
+
+            const order = { critical: 0, high: 1, medium: 2, low: 3 };
+            dedup.sort((a, b) => {
+                const sa = order[(a.severity || 'low').toLowerCase()] ?? 3;
+                const sb = order[(b.severity || 'low').toLowerCase()] ?? 3;
+                if (sa !== sb) return sa - sb;
+                return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
+            });
+
+            const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+            dedup.forEach(f => {
+                const s = (f.severity || 'low').toLowerCase();
+                if (s in counts) counts[s]++;
+            });
+            $('stat-critical').textContent = counts.critical;
+            $('stat-high').textContent = counts.high;
+
+            const top = dedup.slice(0, 5);
+            if (!top.length) {
+                $('council-list').innerHTML = `
+                    <div class="council-row" style="grid-template-columns: 1fr">
+                        <div style="color: var(--text-3); font-family: 'JetBrains Mono', monospace; font-size: 12px">
+                            › agents are warming up — first findings appear within 60s
+                        </div>
+                    </div>`;
+                return;
+            }
+            $('council-list').innerHTML = top.map(f => `
+                <a class="council-row" href="/dashboard" style="text-decoration: none; color: inherit">
+                    ${sevBar(f.severity)}
+                    <div class="agent-col">
+                        <div class="agent">${escapeHtml(f.agent_name)}</div>
+                        <div class="agent-sub">${escapeHtml(f.department || '')}</div>
+                    </div>
+                    <div>
+                        <div class="issue">${escapeHtml(f.issue_title || 'Analyzing…')}</div>
+                        <div class="issue-sub">${escapeHtml((f.summary || '').slice(0, 120))}${(f.summary || '').length > 120 ? '…' : ''}</div>
+                    </div>
+                    <div class="age">${timeAgo(f.timestamp)}</div>
+                </a>
+            `).join('');
+        } catch (err) {
+            console.error('council err', err);
+        }
+    }
+
+    loadStatus();
+    loadCouncil();
+    setInterval(loadStatus, 30000);
+    setInterval(loadCouncil, 60000);
+    </script>
+</body>
+
+</html>
